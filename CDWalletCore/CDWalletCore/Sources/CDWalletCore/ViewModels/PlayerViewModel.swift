@@ -28,15 +28,23 @@ public class PlayerViewModel: ObservableObject {
             .assign(to: &$playbackTime)
     }
 
-    public func playDisc(_ disc: Disc) async {
+    /// Play a disc. Returns true if playback started successfully.
+    @discardableResult
+    public func playDisc(_ disc: Disc) async -> Bool {
         let albumService = AlbumService()
 
         // Resolve catalog album by title/artist - this gets the FULL album with ALL tracks
         let resolution = await albumService.resolveCatalogAlbum(title: disc.albumTitle, artist: disc.artistName)
 
         if case .resolved(let album) = resolution {
-            try? await playerController.playAlbum(album)
+            do {
+                try await playerController.playAlbum(album)
+                return true
+            } catch {
+                return false
+            }
         }
+        return false
     }
 
     public func togglePlayPause() {

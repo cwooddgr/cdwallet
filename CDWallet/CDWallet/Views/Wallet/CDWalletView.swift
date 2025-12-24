@@ -39,8 +39,10 @@ struct CDWalletView: View {
                             rightDisc: spread.count > 1 ? spread[1].disc : nil,
                             onDiscTapped: { disc in
                                 Task {
-                                    await playerViewModel.playDisc(disc)
-                                    showingPlayer = true
+                                    let success = await playerViewModel.playDisc(disc)
+                                    if success {
+                                        showingPlayer = true
+                                    }
                                 }
                             }
                         )

@@ -78,6 +78,7 @@ public actor AlbumService {
 
     /// Resolve FULL CATALOG album by title and artist
     /// This searches the Apple Music catalog and returns the complete album with all tracks
+    /// Falls back to library album if catalog search fails
     public func resolveCatalogAlbum(title: String, artist: String) async -> AlbumResolution {
 
         // Check cache first (keyed by title|artist)
@@ -86,13 +87,12 @@ public actor AlbumService {
             return .resolved(cached)
         }
 
+        // Try catalog first
         do {
-            // Search the catalog
             var searchRequest = MusicCatalogSearchRequest(term: "\(artist) \(title)", types: [Album.self])
             searchRequest.limit = 10
             let searchResponse = try await searchRequest.response()
 
-            // Find best match using normalized titles
             let normalizedTitle = normalizeAlbumTitle(title)
             let artistLower = artist.lowercased()
 
@@ -101,18 +101,22 @@ public actor AlbumService {
                 let albumArtistLower = album.artistName.lowercased()
 
                 if albumNormalized == normalizedTitle && albumArtistLower == artistLower {
-                    // Found exact match - load with tracks
                     let fullAlbum = try await album.with([.tracks])
                     cache[cacheKey] = fullAlbum
                     return .resolved(fullAlbum)
                 }
             }
-
-            return .unavailable(albumID: cacheKey)
-
         } catch {
-            return .unavailable(albumID: cacheKey)
+            // Catalog search failed - fall through to library search
         }
+
+        // Fallback: try library album (may have fewer tracks but better than nothing)
+        if let libraryAlbums = libraryAlbums,
+           let resolution = await searchAlbum(title: title, artist: artist, inLibrary: libraryAlbums) {
+            return resolution
+        }
+
+        return .unavailable(albumID: cacheKey)
     }
 
     /// Resolve multiple album IDs concurrently with limit (CATALOG - requires MusicKit token)
