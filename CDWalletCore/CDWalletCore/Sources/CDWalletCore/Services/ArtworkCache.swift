@@ -2,15 +2,23 @@ import Foundation
 import UIKit
 import MusicKit
 
-/// Caches artwork images for fast UI rendering
+/// Caches artwork images for fast UI rendering (memory + disk)
 public actor ArtworkCache {
     public static let shared = ArtworkCache()
 
     private let memoryCache = NSCache<NSString, UIImage>()
     private let maxMemoryCacheSize = 50 // albums
+    private let diskCacheDirectory: URL
 
     private init() {
         memoryCache.countLimit = maxMemoryCacheSize
+
+        // Set up disk cache directory
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        diskCacheDirectory = caches.appendingPathComponent("ArtworkCache", isDirectory: true)
+
+        // Create directory if needed
+        try? FileManager.default.createDirectory(at: diskCacheDirectory, withIntermediateDirectories: true)
     }
 
     /// Fetch artwork for an album, using cache when available
@@ -22,26 +30,50 @@ public actor ArtworkCache {
             return cached
         }
 
+        // Check disk cache
+        if let diskCached = loadFromDisk(key: cacheKey) {
+            memoryCache.setObject(diskCached, forKey: cacheKey as NSString)
+            return diskCached
+        }
+
         // Try disc artwork first
         if let discArtwork = disc.artwork {
             if let image = await fetchImage(from: discArtwork, size: size, albumTitle: disc.albumTitle) {
-                memoryCache.setObject(image, forKey: cacheKey as NSString)
+                cacheImage(image, forKey: cacheKey)
                 return image
             }
-            // Local artwork failed (not cached on device) - fall through to catalog search
-            print("📀 DEBUG: ArtworkCache - Local artwork failed for '\(disc.albumTitle)', trying catalog...")
         }
 
         // Fall back to catalog search
         if let catalogArtwork = await searchCatalogForArtwork(title: disc.albumTitle, artist: disc.artistName) {
             if let image = await fetchImage(from: catalogArtwork, size: size, albumTitle: disc.albumTitle) {
-                memoryCache.setObject(image, forKey: cacheKey as NSString)
+                cacheImage(image, forKey: cacheKey)
                 return image
             }
         }
 
-        print("📀 DEBUG: ArtworkCache - No artwork found for '\(disc.albumTitle)'")
         return nil
+    }
+
+    /// Cache image to both memory and disk
+    private func cacheImage(_ image: UIImage, forKey key: String) {
+        memoryCache.setObject(image, forKey: key as NSString)
+        saveToDisk(image: image, key: key)
+    }
+
+    /// Save image to disk cache
+    private func saveToDisk(image: UIImage, key: String) {
+        let fileURL = diskCacheDirectory.appendingPathComponent(key.replacingOccurrences(of: "/", with: "_") + ".jpg")
+        if let data = image.jpegData(compressionQuality: 0.85) {
+            try? data.write(to: fileURL)
+        }
+    }
+
+    /// Load image from disk cache
+    private func loadFromDisk(key: String) -> UIImage? {
+        let fileURL = diskCacheDirectory.appendingPathComponent(key.replacingOccurrences(of: "/", with: "_") + ".jpg")
+        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        return UIImage(data: data)
     }
 
     /// Fetch image from artwork URL
@@ -54,7 +86,6 @@ public actor ArtworkCache {
             let (data, _) = try await URLSession.shared.data(from: url)
             return UIImage(data: data)
         } catch {
-            print("📀 DEBUG: ArtworkCache - Fetch error for '\(albumTitle)': \(error.localizedDescription)")
             return nil
         }
     }
@@ -69,24 +100,17 @@ public actor ArtworkCache {
             let titleLower = title.lowercased()
             let artistLower = artist.lowercased()
 
+            // Try exact match first
             for album in searchResponse.albums {
                 if album.title.lowercased() == titleLower &&
                    album.artistName.lowercased() == artistLower {
-                    print("📀 DEBUG: ArtworkCache - Found catalog artwork for '\(title)'")
                     return album.artwork
                 }
             }
 
-            // If no exact match, use first result as fallback
-            if let firstAlbum = searchResponse.albums.first {
-                print("📀 DEBUG: ArtworkCache - Using first catalog result artwork for '\(title)'")
-                return firstAlbum.artwork
-            }
-
-            print("📀 DEBUG: ArtworkCache - No catalog results for '\(title)'")
-            return nil
+            // Fall back to first result
+            return searchResponse.albums.first?.artwork
         } catch {
-            print("📀 DEBUG: ArtworkCache - Error searching catalog for artwork: \(error)")
             return nil
         }
     }

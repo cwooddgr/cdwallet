@@ -29,24 +29,13 @@ public class PlayerViewModel: ObservableObject {
     }
 
     public func playDisc(_ disc: Disc) async {
-        // Search catalog for FULL album (all tracks) using title and artist
-        print("📀 DEBUG: PlayerViewModel - Playing disc '\(disc.albumTitle)' by '\(disc.artistName)'")
         let albumService = AlbumService()
 
         // Resolve catalog album by title/artist - this gets the FULL album with ALL tracks
         let resolution = await albumService.resolveCatalogAlbum(title: disc.albumTitle, artist: disc.artistName)
 
         if case .resolved(let album) = resolution {
-            print("📀 DEBUG: PlayerViewModel - Resolved catalog album with \(album.tracks?.count ?? 0) tracks")
-            print("📀 DEBUG: PlayerViewModel - Starting playback...")
-            do {
-                try await playerController.playAlbum(album)
-                print("📀 DEBUG: PlayerViewModel - Playback started successfully")
-            } catch {
-                print("📀 DEBUG: PlayerViewModel - Playback error: \(error)")
-            }
-        } else {
-            print("📀 DEBUG: PlayerViewModel - Failed to resolve catalog album")
+            try? await playerController.playAlbum(album)
         }
     }
 

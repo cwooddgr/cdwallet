@@ -10,7 +10,7 @@ struct LandscapePlayerView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.black.ignoresSafeArea()
+            Color(white: 0.1).ignoresSafeArea()
 
             HStack(spacing: 0) {
                 // Left side: Album artwork
@@ -206,7 +206,7 @@ struct LandscapePlayerView: View {
 
     private var playerControlsSection: some View {
         VStack(spacing: 16) {
-            cdPlayerDisplay
+            // cdPlayerDisplay  // Hidden for now - uncomment to show track/time display
 
             HStack(spacing: 40) {
                 // Previous

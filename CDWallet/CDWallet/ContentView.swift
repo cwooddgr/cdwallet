@@ -16,7 +16,12 @@ struct ContentView: View {
         case .needsAuthorization:
             AuthorizationView()
         case .loading:
-            ProgressView("Loading your CDs...")
+            ZStack {
+                Color(white: 0.1).ignoresSafeArea()
+                ProgressView("Loading your CDs...")
+                    .tint(.white)
+                    .foregroundColor(.white)
+            }
         case .ready:
             CDWalletView()
         case .empty(let reason):

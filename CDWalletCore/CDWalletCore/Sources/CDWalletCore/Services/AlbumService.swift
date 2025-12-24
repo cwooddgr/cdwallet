@@ -17,25 +17,20 @@ public actor AlbumService {
             return cached
         }
 
-        print("📀 DEBUG: Fetching library albums (one-time)")
         var request = MusicLibraryRequest<Album>()
         let response = try await request.response()
         let albums = Array(response.items)
         libraryAlbums = albums
-        print("📀 DEBUG: Cached \(albums.count) library albums")
         return albums
     }
 
     /// Search for albums in the library by title and artist
     public func searchAlbums(albumInfo: [(title: String, artist: String)]) async -> [AlbumResolution] {
-        print("📀 DEBUG: AlbumService searching for \(albumInfo.count) albums")
-
         // Fetch library once (cached for subsequent calls)
         let libraryAlbums: [Album]
         do {
             libraryAlbums = try await getLibraryAlbums()
         } catch {
-            print("📀 DEBUG: Error fetching library: \(error)")
             return []
         }
 
@@ -53,7 +48,6 @@ public actor AlbumService {
     /// Search for FULL CATALOG album by title/artist for playback
     /// CRITICAL: Returns complete album with all tracks, not just library tracks
     public func searchCatalogAlbumForPlayback(title: String, artist: String) async -> AlbumResolution {
-        print("📀 DEBUG: Searching catalog for FULL album '\(title)' by '\(artist)'")
 
         do {
             // Use MusicCatalogSearchRequest to find the full album
@@ -71,17 +65,13 @@ public actor AlbumService {
             }
 
             if let album = matchingAlbums.first {
-                print("📀 DEBUG: Found FULL catalog album '\(album.title)' with \(album.tracks?.count ?? 0) tracks")
                 cache[album.id.rawValue] = album
                 return .resolved(album)
             } else {
-                print("📀 DEBUG: No catalog album match found")
-                print("📀 DEBUG: Search returned \(searchResponse.albums.count) albums")
                 return .unavailable(albumID: "\(artist)-\(title)")
             }
 
         } catch {
-            print("📀 DEBUG: Error searching catalog: \(error)")
             return .unavailable(albumID: "\(artist)-\(title)")
         }
     }
@@ -89,12 +79,10 @@ public actor AlbumService {
     /// Resolve FULL CATALOG album by title and artist
     /// This searches the Apple Music catalog and returns the complete album with all tracks
     public func resolveCatalogAlbum(title: String, artist: String) async -> AlbumResolution {
-        print("📀 DEBUG: Searching catalog for '\(title)' by '\(artist)'")
 
         // Check cache first (keyed by title|artist)
         let cacheKey = "\(artist.lowercased())|\(title.lowercased())"
         if let cached = cache[cacheKey] {
-            print("📀 DEBUG: Found cached catalog album")
             return .resolved(cached)
         }
 
@@ -103,8 +91,6 @@ public actor AlbumService {
             var searchRequest = MusicCatalogSearchRequest(term: "\(artist) \(title)", types: [Album.self])
             searchRequest.limit = 10
             let searchResponse = try await searchRequest.response()
-
-            print("📀 DEBUG: Catalog search returned \(searchResponse.albums.count) albums")
 
             // Find best match using normalized titles
             let normalizedTitle = normalizeAlbumTitle(title)
@@ -117,18 +103,14 @@ public actor AlbumService {
                 if albumNormalized == normalizedTitle && albumArtistLower == artistLower {
                     // Found exact match - load with tracks
                     let fullAlbum = try await album.with([.tracks])
-                    print("📀 DEBUG: Found catalog album '\(fullAlbum.title)' with \(fullAlbum.tracks?.count ?? 0) tracks")
                     cache[cacheKey] = fullAlbum
                     return .resolved(fullAlbum)
                 }
             }
 
-            // No exact match found
-            print("📀 DEBUG: No exact match found in catalog")
             return .unavailable(albumID: cacheKey)
 
         } catch {
-            print("📀 DEBUG: Error searching catalog: \(error)")
             return .unavailable(albumID: cacheKey)
         }
     }
@@ -188,11 +170,9 @@ public actor AlbumService {
         }
 
         if let album = matchingAlbums.first {
-            print("📀 DEBUG: Found album '\(album.title)' by '\(album.artistName)' in library")
             cache[album.id.rawValue] = album
             return .resolved(album)
         } else {
-            print("📀 DEBUG: No matching album found for '\(title)' by '\(artist)'")
             return .unavailable(albumID: "\(artist)-\(title)")
         }
     }

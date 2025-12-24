@@ -11,6 +11,7 @@ public class WalletViewModel: ObservableObject {
     private let authService = AuthorizationService()
     private let playlistService = PlaylistService()
     private let albumService = AlbumService()
+    private let discCache = DiscCache.shared
 
     private var lastRefreshTime: Date?
 
@@ -21,6 +22,11 @@ public class WalletViewModel: ObservableObject {
         let isAuthorized = await authService.ensureAuthorized()
 
         if isAuthorized {
+            // Load from cache first for instant display
+            if let cachedDiscs = discCache.load(), !cachedDiscs.isEmpty {
+                state = .ready(discs: cachedDiscs)
+            }
+            // Then refresh from Apple Music
             await refresh()
         } else {
             state = .needsAuthorization
@@ -42,7 +48,12 @@ public class WalletViewModel: ObservableObject {
 
     /// Refresh wallet from "CDs" playlist
     public func refresh() async {
-        state = .loading
+        // Only show loading if we don't have cached data
+        if case .ready = state {
+            // Already showing cached data, refresh silently
+        } else {
+            state = .loading
+        }
 
         do {
             // 1. Locate "CDs" playlist
@@ -68,10 +79,8 @@ public class WalletViewModel: ObservableObject {
 
             // 3. Extract album info (title/artist pairs)
             let albumInfo = await playlistService.extractAlbumInfo(from: tracks)
-            print("📀 DEBUG: Extracted \(albumInfo.count) album info pairs from \(tracks.count) tracks")
 
             guard !albumInfo.isEmpty else {
-                print("📀 DEBUG: No album info extracted - tracks may not have album metadata")
                 state = .empty(reason: .noAlbumsResolved)
                 updateDiagnostics(
                     playlistSelection: selection,
@@ -88,7 +97,6 @@ public class WalletViewModel: ObservableObject {
 
             // 4. Search for albums in library by title/artist
             let resolutions = await albumService.searchAlbums(albumInfo: albumInfo)
-            print("📀 DEBUG: Searched for \(albumInfo.count) albums, got \(resolutions.count) results")
 
             // 5. Build discs from resolved albums
             let discs = resolutions.compactMap { resolution -> Disc? in
@@ -97,17 +105,17 @@ public class WalletViewModel: ObservableObject {
                 }
                 return nil
             }
-            print("📀 DEBUG: Built \(discs.count) Disc objects from \(resolutions.count) resolutions")
 
             // 6. Sort discs
             let sortedDiscs = discs.sorted()
-            print("📀 DEBUG: Sorted \(sortedDiscs.count) discs")
 
-            // 7. Update state
+            // 7. Update state and cache
             if sortedDiscs.isEmpty {
                 state = .empty(reason: .noAlbumsResolved)
+                discCache.clear()
             } else {
                 state = .ready(discs: sortedDiscs)
+                discCache.save(discs: sortedDiscs)
             }
 
             lastRefreshTime = Date()

@@ -6,7 +6,6 @@ struct CDWalletView: View {
     @EnvironmentObject var walletViewModel: WalletViewModel
     @EnvironmentObject var playerViewModel: PlayerViewModel
     @State private var currentPage = 0
-    @State private var showingDiagnostics = false
     @State private var showingPlayer = false
 
     var discs: [Disc] {
@@ -27,39 +26,10 @@ struct CDWalletView: View {
     var body: some View {
         ZStack {
             // Dark background (the wallet case)
-            Color.black
+            Color(white: 0.1)
                 .ignoresSafeArea()
 
             VStack {
-                // Title bar
-                HStack {
-                    Text("My CDs")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-
-                    Spacer()
-
-                    Menu {
-                        Button {
-                            Task { await walletViewModel.refresh() }
-                        } label: {
-                            Label("Refresh", systemImage: "arrow.clockwise")
-                        }
-
-                        Button {
-                            showingDiagnostics = true
-                        } label: {
-                            Label("Diagnostics", systemImage: "info.circle")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding()
-
                 // CD spreads with paging
                 TabView(selection: $currentPage) {
                     ForEach(spreads.indices, id: \.self) { index in
@@ -80,9 +50,6 @@ struct CDWalletView: View {
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
             }
-        }
-        .sheet(isPresented: $showingDiagnostics) {
-            DiagnosticsView()
         }
         .fullScreenCover(isPresented: $showingPlayer) {
             LandscapePlayerView()

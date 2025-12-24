@@ -6,34 +6,39 @@ struct EmptyStateView: View {
     @EnvironmentObject var walletViewModel: WalletViewModel
 
     var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: iconName)
-                .font(.system(size: 60))
-                .foregroundColor(.secondary)
+        ZStack {
+            Color(white: 0.1).ignoresSafeArea()
 
-            Text(title)
-                .font(.title2)
-                .fontWeight(.semibold)
+            VStack(spacing: 24) {
+                Image(systemName: iconName)
+                    .font(.system(size: 60))
+                    .foregroundColor(.gray)
 
-            Text(message)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-
-            Button {
-                Task {
-                    await walletViewModel.refresh()
-                }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                Text(title)
+                    .font(.title2)
                     .fontWeight(.semibold)
-                    .padding()
-                    .background(Color.accentColor)
                     .foregroundColor(.white)
-                    .cornerRadius(12)
+
+                Text(message)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal)
+
+                Button {
+                    Task {
+                        await walletViewModel.refresh()
+                    }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                        .fontWeight(.semibold)
+                        .padding()
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
             }
+            .padding()
         }
-        .padding()
     }
 
     private var iconName: String {
@@ -69,34 +74,39 @@ struct ErrorView: View {
     @EnvironmentObject var walletViewModel: WalletViewModel
 
     var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.red)
+        ZStack {
+            Color(white: 0.1).ignoresSafeArea()
 
-            Text("Something Went Wrong")
-                .font(.title2)
-                .fontWeight(.semibold)
+            VStack(spacing: 24) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.red)
 
-            Text(message)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-
-            Button {
-                Task {
-                    await walletViewModel.refresh()
-                }
-            } label: {
-                Label("Try Again", systemImage: "arrow.clockwise")
+                Text("Something Went Wrong")
+                    .font(.title2)
                     .fontWeight(.semibold)
-                    .padding()
-                    .background(Color.accentColor)
                     .foregroundColor(.white)
-                    .cornerRadius(12)
+
+                Text(message)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal)
+
+                Button {
+                    Task {
+                        await walletViewModel.refresh()
+                    }
+                } label: {
+                    Label("Try Again", systemImage: "arrow.clockwise")
+                        .fontWeight(.semibold)
+                        .padding()
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
             }
+            .padding()
         }
-        .padding()
     }
 }
 

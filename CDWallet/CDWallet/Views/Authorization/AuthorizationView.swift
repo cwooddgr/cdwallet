@@ -5,37 +5,42 @@ struct AuthorizationView: View {
     @EnvironmentObject var walletViewModel: WalletViewModel
 
     var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "music.note.list")
-                .font(.system(size: 80))
-                .foregroundColor(.accentColor)
+        ZStack {
+            Color(white: 0.1).ignoresSafeArea()
 
-            Text("Welcome to CD Wallet")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+            VStack(spacing: 24) {
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 80))
+                    .foregroundColor(.accentColor)
 
-            Text("CD Wallet needs access to your Apple Music library to find your CDs playlist and play your albums.")
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-
-            Button {
-                Task {
-                    await walletViewModel.requestAuthorization()
-                }
-            } label: {
-                Text("Allow Access to Apple Music")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.accentColor)
+                Text("Welcome to CD Wallet")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
                     .foregroundColor(.white)
-                    .cornerRadius(12)
+
+                Text("CD Wallet needs access to your Apple Music library to find your CDs playlist and play your albums.")
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal)
+
+                Button {
+                    Task {
+                        await walletViewModel.requestAuthorization()
+                    }
+                } label: {
+                    Text("Allow Access to Apple Music")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
+            .padding()
         }
-        .padding()
     }
 }
 

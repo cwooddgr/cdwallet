@@ -33,6 +33,20 @@ public struct Disc: Identifiable, Hashable {
         self.albumSortKey = Self.computeAlbumSortKey(from: album.title)
     }
 
+    /// Initialize from cached data (artwork loaded separately via ArtworkCache)
+    internal init(cached: CachedDisc) {
+        self.id = cached.id
+        self.albumID = MusicItemID(cached.id)
+        self.artistName = cached.artistName
+        self.albumTitle = cached.albumTitle
+        self.artwork = nil // Loaded via ArtworkCache
+        self.releaseDate = cached.releaseDate
+        self.trackCount = cached.trackCount
+        self.isAvailable = true
+        self.artistSortKey = cached.artistSortKey
+        self.albumSortKey = cached.albumSortKey
+    }
+
     /// For playback, we need title and artist to search for the full catalog album
     public var searchInfo: (title: String, artist: String) {
         (albumTitle, artistName)
