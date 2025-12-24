@@ -6,28 +6,48 @@ public actor AlbumService {
     private let maxConcurrentRequests = 6
     private var cache: [String: Album] = [:]
 
+    /// Cached library albums to avoid repeated fetches
+    private var libraryAlbums: [Album]?
+
     public init() {}
+
+    /// Fetches and caches all library albums (called once)
+    private func getLibraryAlbums() async throws -> [Album] {
+        if let cached = libraryAlbums {
+            return cached
+        }
+
+        print("📀 DEBUG: Fetching library albums (one-time)")
+        var request = MusicLibraryRequest<Album>()
+        let response = try await request.response()
+        let albums = Array(response.items)
+        libraryAlbums = albums
+        print("📀 DEBUG: Cached \(albums.count) library albums")
+        return albums
+    }
 
     /// Search for albums in the library by title and artist
     public func searchAlbums(albumInfo: [(title: String, artist: String)]) async -> [AlbumResolution] {
         print("📀 DEBUG: AlbumService searching for \(albumInfo.count) albums")
 
-        return await withTaskGroup(of: (Int, AlbumResolution?).self) { group -> [AlbumResolution] in
-            for (index, info) in albumInfo.enumerated() {
-                group.addTask {
-                    let resolution = await self.searchAlbum(title: info.0, artist: info.1)
-                    return (index, resolution)
-                }
-            }
-
-            var results: [Int: AlbumResolution?] = [:]
-            for await (index, resolution) in group {
-                results[index] = resolution
-            }
-
-            // Return results in original order, filtering out nil
-            return albumInfo.indices.compactMap { results[$0] ?? nil }
+        // Fetch library once (cached for subsequent calls)
+        let libraryAlbums: [Album]
+        do {
+            libraryAlbums = try await getLibraryAlbums()
+        } catch {
+            print("📀 DEBUG: Error fetching library: \(error)")
+            return []
         }
+
+        // Search in memory - no need for TaskGroup since it's fast now
+        var results: [AlbumResolution] = []
+        for info in albumInfo {
+            if let resolution = await searchAlbum(title: info.0, artist: info.1, inLibrary: libraryAlbums) {
+                results.append(resolution)
+            }
+        }
+
+        return results
     }
 
     /// Search for FULL CATALOG album by title/artist for playback
@@ -152,50 +172,27 @@ public actor AlbumService {
 
     // MARK: - Private
 
-    private func searchAlbum(title: String, artist: String) async -> AlbumResolution? {
-        print("📀 DEBUG: Searching for album '\(title)' by '\(artist)'")
+    private func searchAlbum(title: String, artist: String, inLibrary albums: [Album]) async -> AlbumResolution? {
+        // Filter albums by artist first
+        let artistLower = artist.lowercased()
+        let albumsByArtist = albums.filter { album in
+            album.artistName.lowercased() == artistLower
+        }
 
-        do {
-            // Search in library for albums matching title
-            var request = MusicLibraryRequest<Album>()
-            let response = try await request.response()
+        // Try to match album title with fuzzy matching
+        let normalizedTitle = normalizeAlbumTitle(title)
 
-            print("📀 DEBUG:   Total albums in library: \(response.items.count)")
+        let matchingAlbums = albumsByArtist.filter { album in
+            let normalizedLibraryTitle = normalizeAlbumTitle(album.title)
+            return normalizedLibraryTitle == normalizedTitle
+        }
 
-            // Filter albums by artist first
-            let artistLower = artist.lowercased()
-            let albumsByArtist = response.items.filter { album in
-                album.artistName.lowercased() == artistLower
-            }
-            print("📀 DEBUG:   Albums by '\(artist)': \(albumsByArtist.count)")
-
-            if albumsByArtist.count > 0 {
-                print("📀 DEBUG:   Album titles by this artist: \(albumsByArtist.map { $0.title }.prefix(5))")
-            }
-
-            // Try to match album title with fuzzy matching
-            let normalizedTitle = normalizeAlbumTitle(title)
-
-            let matchingAlbums = albumsByArtist.filter { album in
-                let normalizedLibraryTitle = normalizeAlbumTitle(album.title)
-                return normalizedLibraryTitle == normalizedTitle
-            }
-
-            if let album = matchingAlbums.first {
-                print("📀 DEBUG: Found album '\(album.title)' by '\(album.artistName)' in library")
-                cache[album.id.rawValue] = album
-                return .resolved(album)
-            } else {
-                print("📀 DEBUG: No matching album found for '\(title)' by '\(artist)'")
-                print("📀 DEBUG:   Normalized search title: '\(normalizedTitle)'")
-                if let firstByArtist = albumsByArtist.first {
-                    print("📀 DEBUG:   Example normalized library title: '\(normalizeAlbumTitle(firstByArtist.title))'")
-                }
-                return .unavailable(albumID: "\(artist)-\(title)")
-            }
-
-        } catch {
-            print("📀 DEBUG: Error searching for album: \(error)")
+        if let album = matchingAlbums.first {
+            print("📀 DEBUG: Found album '\(album.title)' by '\(album.artistName)' in library")
+            cache[album.id.rawValue] = album
+            return .resolved(album)
+        } else {
+            print("📀 DEBUG: No matching album found for '\(title)' by '\(artist)'")
             return .unavailable(albumID: "\(artist)-\(title)")
         }
     }

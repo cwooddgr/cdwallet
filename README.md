@@ -8,10 +8,11 @@ CD Wallet lets you curate a collection of albums in a "CDs" playlist, then brows
 
 ## Features
 
-- **Wallet-style browsing**: Swipe through pages of album artwork
-- **iPhone layout**: 2 albums per page (vertical)
-- **iPad layout**: 6 albums per page (3×2 grid)
-- **Full album playback**: Tapping an album plays the complete catalog version with all tracks
+- **Wallet-style browsing**: Swipe through pages of circular CD discs with album artwork
+- **Landscape-only UI**: Optimized for landscape orientation like a real CD wallet
+- **Full album playback**: Tapping a disc plays the complete catalog version with all tracks
+- **CD player display**: Shows current track number and elapsed time with retro LCD styling
+- **Track listing**: View all tracks with the current track highlighted
 - **Smart artwork loading**: Falls back to Apple Music catalog when local artwork isn't cached
 - **Diagnostics view**: Debug info for playlist resolution and album matching
 

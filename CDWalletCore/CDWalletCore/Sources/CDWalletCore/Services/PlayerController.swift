@@ -12,12 +12,34 @@ public class PlayerController: ObservableObject {
     @Published public private(set) var currentAlbum: Album?
     @Published public private(set) var isPlaying: Bool = false
     @Published public private(set) var currentTrack: Track?
+    @Published public private(set) var playbackTime: TimeInterval = 0
 
     private var stateObserver: AnyCancellable?
-    private var queueObserver: AnyCancellable?
+    private var timeObserver: Timer?
 
     private init() {
         observePlayerState()
+        startTimeObserver()
+    }
+
+    private func startTimeObserver() {
+        timeObserver = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.playbackTime = self?.player.playbackTime ?? 0
+                self?.updateCurrentTrackFromQueue()
+            }
+        }
+    }
+
+    private func updateCurrentTrackFromQueue() {
+        guard let entry = player.queue.currentEntry else { return }
+
+        // Match current playing item to a track in the album by title
+        let title = entry.title
+        if let tracks = currentAlbum?.tracks,
+           let matchingTrack = tracks.first(where: { $0.title == title }) {
+            currentTrack = matchingTrack
+        }
     }
 
     /// Play a full album (canonical track order) - CRITICAL: Album completion rule
@@ -32,6 +54,8 @@ public class PlayerController: ObservableObject {
         try await player.play()
 
         currentAlbum = album
+        // Set initial track to first track
+        currentTrack = album.tracks?.first
     }
 
     public func togglePlayPause() {
@@ -69,10 +93,5 @@ public class PlayerController: ObservableObject {
             }
         }
 
-        queueObserver = player.queue.objectWillChange.sink { [weak self] _ in
-            Task { @MainActor in
-                self?.currentTrack = self?.player.queue.currentEntry?.item as? Track
-            }
-        }
     }
 }

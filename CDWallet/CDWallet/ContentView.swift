@@ -18,7 +18,7 @@ struct ContentView: View {
         case .loading:
             ProgressView("Loading your CDs...")
         case .ready:
-            WalletPagedView()
+            CDWalletView()
         case .empty(let reason):
             EmptyStateView(reason: reason)
         case .error(let message):

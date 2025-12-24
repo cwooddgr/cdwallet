@@ -18,8 +18,10 @@ CD Wallet is a universal iOS/iPadOS app that recreates the experience of browsin
 - ✅ MusicKit authorization and library access
 - ✅ Playlist discovery with deterministic collision handling
 - ✅ Album resolution via title/artist search with fuzzy matching
-- ✅ Paged wallet UI (device-optimized: iPhone 2/page, iPad 6/page)
+- ✅ Landscape-only wallet UI with circular CD discs (2 per page spread)
 - ✅ Full album playback from Apple Music catalog
+- ✅ Player view with album art, track listing, and playback controls
+- ✅ CD player-style display (track number + elapsed time with green LCD styling)
 - ✅ Manual refresh and comprehensive diagnostics
 - ✅ Sorting by artist → album → albumID with article stripping
 - ✅ Unit tests for sorting and playlist selection logic
@@ -50,7 +52,12 @@ CD Wallet is a universal iOS/iPadOS app that recreates the experience of browsin
 - ViewModels: `WalletViewModel`, `PlayerViewModel`, `DiagnosticsViewModel`
 - Services: `AuthorizationService`, `PlaylistService`, `AlbumService`, `ArtworkCache`, `PlayerController`
 
-**UI Layout Strategy**: Use SwiftUI size classes and idiom checks for device-appropriate layouts. iPad layouts must be optimized (different density, spacing, typography), not stretched phone layouts.
+**UI Views** (CDWallet app target):
+- Wallet: `CDWalletView`, `WalletSpreadView2`, `CDDiscView`
+- Player: `LandscapePlayerView`
+- Support: `AppDelegate` (forces landscape orientation)
+
+**UI Layout Strategy**: Landscape-only orientation. Uses SwiftUI with circular CD disc visuals and paged spread navigation.
 
 ## Core Architecture & Data Flow
 
@@ -144,8 +151,10 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 
 ### PlayerController
 - Uses `ApplicationMusicPlayer.shared` (app-controlled queue)
-- `func playAlbum(albumID: String, startTrackID: String?) async throws`
+- `func playAlbum(_ album: Album, startTrackID: MusicItemID?) async throws`
 - Always queues the resolved Album object (full tracks in canonical order), never playlist tracks
+- Tracks current playback state: `currentAlbum`, `currentTrack`, `isPlaying`, `playbackTime`
+- Uses timer-based polling (0.5s) to update playback time and match current track by title
 
 ## States & Error Handling
 
@@ -173,10 +182,12 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 ### Post-First Light ✅ COMPLETE
 1. ✅ Sorting and stable ordering (artist → album → albumID with article stripping)
 2. ✅ Manual refresh + caching (in-memory artwork + metadata)
-3. ✅ Horizontally paged wallet UI:
-   - iPhone: 2 discs per page (vertical layout)
-   - iPad: 6 discs per page (3×2 grid)
-   - Device-specific sizing and spacing via size class checks
+3. ✅ Landscape-only wallet UI with circular CD discs (2 per spread)
+4. ✅ Player view with:
+   - Album artwork display (left side)
+   - Track listing with numbers and current track highlighting (right side)
+   - CD player-style display (track number + elapsed time, green LCD styling)
+   - Playback controls (previous/play-pause/next)
 
 ### Deferred (Post-MVP)
 - Page flip animation, disc pull-out gestures

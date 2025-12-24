@@ -10,6 +10,7 @@ import CDWalletCore
 
 @main
 struct CDWalletApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var walletViewModel = WalletViewModel()
     @StateObject private var playerViewModel = PlayerViewModel()
 

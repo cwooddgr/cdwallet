@@ -8,6 +8,7 @@ public class PlayerViewModel: ObservableObject {
     @Published public private(set) var currentAlbum: Album?
     @Published public private(set) var currentTrack: Track?
     @Published public private(set) var isPlaying: Bool = false
+    @Published public private(set) var playbackTime: TimeInterval = 0
 
     private let playerController = PlayerController.shared
     private var cancellables = Set<AnyCancellable>()
@@ -22,6 +23,9 @@ public class PlayerViewModel: ObservableObject {
 
         playerController.$isPlaying
             .assign(to: &$isPlaying)
+
+        playerController.$playbackTime
+            .assign(to: &$playbackTime)
     }
 
     public func playDisc(_ disc: Disc) async {
