@@ -158,18 +158,16 @@ public actor AlbumService {
     // MARK: - Private
 
     private func searchAlbum(title: String, artist: String, inLibrary albums: [Album]) async -> AlbumResolution? {
-        // Filter albums by artist first
-        let artistLower = artist.lowercased()
-        let albumsByArtist = albums.filter { album in
-            album.artistName.lowercased() == artistLower
-        }
-
-        // Try to match album title with fuzzy matching
         let normalizedTitle = normalizeAlbumTitle(title)
 
-        let matchingAlbums = albumsByArtist.filter { album in
+        // Search by title first, then verify artist matches
+        let matchingAlbums = albums.filter { album in
             let normalizedLibraryTitle = normalizeAlbumTitle(album.title)
-            return normalizedLibraryTitle == normalizedTitle
+            guard normalizedLibraryTitle == normalizedTitle || titlesMatch(album.title, title) else {
+                return false
+            }
+            // Flexible artist matching
+            return artistsMatch(album.artistName, artist)
         }
 
         if let album = matchingAlbums.first {
@@ -178,6 +176,33 @@ public actor AlbumService {
         } else {
             return .unavailable(albumID: "\(artist)-\(title)")
         }
+    }
+
+    /// Flexible artist matching - handles "Artist & Featured" vs "Artist"
+    private func artistsMatch(_ artist1: String, _ artist2: String) -> Bool {
+        let a1 = artist1.lowercased()
+        let a2 = artist2.lowercased()
+
+        // Exact match
+        if a1 == a2 { return true }
+
+        // One contains the other
+        if a1.contains(a2) || a2.contains(a1) { return true }
+
+        // Extract primary artist (before &, and, feat., featuring, with)
+        let separators = [" & ", " and ", " feat. ", " feat ", " featuring ", " with "]
+        var primary1 = a1
+        var primary2 = a2
+        for sep in separators {
+            if let range = primary1.range(of: sep) {
+                primary1 = String(primary1[..<range.lowerBound])
+            }
+            if let range = primary2.range(of: sep) {
+                primary2 = String(primary2[..<range.lowerBound])
+            }
+        }
+
+        return primary1 == primary2
     }
 
     /// Normalize album title for fuzzy matching

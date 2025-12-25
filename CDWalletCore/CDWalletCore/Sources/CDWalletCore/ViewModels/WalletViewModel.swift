@@ -117,15 +117,18 @@ public class WalletViewModel: ObservableObject {
                 }
                 return nil
             }
+            print("📀 DEBUG: Built \(discs.count) discs from library")
 
             // 6. Filter out albums known to be unavailable (from previous playback failures)
             let filteredDiscs = discs.filter { disc in
                 !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
             }
+            print("📀 DEBUG: After unavailable filter: \(filteredDiscs.count) discs")
 
             // 7. Verify NEW albums only (ones not in our disc cache)
             // Previously verified albums from cache don't need re-verification
             let cachedAlbumIDs = Set((discCache.load() ?? []).map { $0.id })
+            print("📀 DEBUG: Cached album IDs: \(cachedAlbumIDs.count)")
             let (cachedDiscs, newDiscs) = filteredDiscs.reduce(into: ([Disc](), [Disc]())) { result, disc in
                 if cachedAlbumIDs.contains(disc.id) {
                     result.0.append(disc)
@@ -133,6 +136,7 @@ public class WalletViewModel: ObservableObject {
                     result.1.append(disc)
                 }
             }
+            print("📀 DEBUG: Cached discs: \(cachedDiscs.count), New discs to verify: \(newDiscs.count)")
 
             // Verify only new albums with catalog (throttled)
             var verifiedNewDiscs: [Disc] = []
@@ -165,9 +169,11 @@ public class WalletViewModel: ObservableObject {
                 verifiedNewDiscs.append(contentsOf: chunkResults)
             }
 
+            print("📀 DEBUG: Verified new discs: \(verifiedNewDiscs.count)")
             let sortedDiscs = (cachedDiscs + verifiedNewDiscs).sorted()
+            print("📀 DEBUG: Total discs to show: \(sortedDiscs.count)")
 
-            // 7. Update state and cache
+            // 8. Update state and cache
             if sortedDiscs.isEmpty {
                 state = .empty(reason: .noAlbumsResolved)
                 discCache.clear()
