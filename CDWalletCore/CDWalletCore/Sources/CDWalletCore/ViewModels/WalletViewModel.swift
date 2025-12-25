@@ -118,16 +118,25 @@ public class WalletViewModel: ObservableObject {
                 return nil
             }
 
-            // 6. Filter out albums known to be unavailable
-            let potentialDiscs = discs.filter { disc in
+            // 6. Filter out albums known to be unavailable (from previous playback failures)
+            let filteredDiscs = discs.filter { disc in
                 !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
             }
 
-            // 7. Verify catalog availability for remaining albums (throttled to avoid rate limiting)
-            let maxConcurrent = 5
-            var verifiedDiscs: [Disc] = []
+            // 7. Verify NEW albums only (ones not in our disc cache)
+            // Previously verified albums from cache don't need re-verification
+            let cachedAlbumIDs = Set((discCache.load() ?? []).map { $0.id })
+            let (cachedDiscs, newDiscs) = filteredDiscs.reduce(into: ([Disc](), [Disc]())) { result, disc in
+                if cachedAlbumIDs.contains(disc.id) {
+                    result.0.append(disc)
+                } else {
+                    result.1.append(disc)
+                }
+            }
 
-            for chunk in potentialDiscs.chunked(into: maxConcurrent) {
+            // Verify only new albums with catalog (throttled)
+            var verifiedNewDiscs: [Disc] = []
+            for chunk in newDiscs.chunked(into: 5) {
                 let chunkResults = await withTaskGroup(of: Disc?.self) { group in
                     for disc in chunk {
                         group.addTask {
@@ -139,29 +148,26 @@ public class WalletViewModel: ObservableObject {
                             case .resolved:
                                 return disc
                             case .unavailable:
-                                // Only mark as unavailable when we're SURE it's not in the catalog
                                 self.unavailableCache.markUnavailable(title: disc.albumTitle, artist: disc.artistName)
                                 return nil
                             case .error:
-                                // Temporary error - don't cache, but also don't show in wallet this time
-                                return nil
+                                // On error, include anyway - will verify at playback
+                                return disc
                             }
                         }
                     }
                     var results: [Disc] = []
                     for await disc in group {
-                        if let disc = disc {
-                            results.append(disc)
-                        }
+                        if let disc = disc { results.append(disc) }
                     }
                     return results
                 }
-                verifiedDiscs.append(contentsOf: chunkResults)
+                verifiedNewDiscs.append(contentsOf: chunkResults)
             }
 
-            let sortedDiscs = verifiedDiscs.sorted()
+            let sortedDiscs = (cachedDiscs + verifiedNewDiscs).sorted()
 
-            // 8. Update state and cache
+            // 7. Update state and cache
             if sortedDiscs.isEmpty {
                 state = .empty(reason: .noAlbumsResolved)
                 discCache.clear()
