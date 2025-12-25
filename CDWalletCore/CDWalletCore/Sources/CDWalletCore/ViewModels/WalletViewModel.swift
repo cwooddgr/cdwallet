@@ -13,6 +13,7 @@ public class WalletViewModel: ObservableObject {
     private let albumService = AlbumService()
     private let discCache = DiscCache.shared
     private let artworkCache = ArtworkCache.shared
+    private let unavailableCache = UnavailableAlbumsCache.shared
 
     private var lastRefreshTime: Date?
 
@@ -107,8 +108,11 @@ public class WalletViewModel: ObservableObject {
                 return nil
             }
 
-            // 6. Sort discs
-            let sortedDiscs = discs.sorted()
+            // 6. Filter out albums known to be unavailable, then sort
+            let availableDiscs = discs.filter { disc in
+                !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
+            }
+            let sortedDiscs = availableDiscs.sorted()
 
             // 7. Update state and cache
             if sortedDiscs.isEmpty {
