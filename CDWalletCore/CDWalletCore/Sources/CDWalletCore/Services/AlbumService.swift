@@ -80,9 +80,12 @@ public actor AlbumService {
     /// This searches the Apple Music catalog and returns the complete album with all tracks
     /// Returns unavailable if catalog search fails - we never play partial albums
     public func resolveCatalogAlbum(title: String, artist: String) async -> AlbumResolution {
+        print("🔍 Searching: '\(title)' by '\(artist)'")
+
         // Check cache first (keyed by title|artist)
         let cacheKey = "\(artist.lowercased())|\(title.lowercased())"
         if let cached = cache[cacheKey] {
+            print("🔍 Found in cache")
             return .resolved(cached)
         }
 
@@ -90,20 +93,26 @@ public actor AlbumService {
             var searchRequest = MusicCatalogSearchRequest(term: "\(artist) \(title)", types: [Album.self])
             searchRequest.limit = 10
             let searchResponse = try await searchRequest.response()
+            print("🔍 Catalog returned \(searchResponse.albums.count) results")
 
             let artistLower = artist.lowercased()
 
             for album in searchResponse.albums {
                 let albumArtistLower = album.artistName.lowercased()
+                let titleMatch = titlesMatch(album.title, title)
+                let artistMatch = albumArtistLower == artistLower
+                print("🔍   '\(album.title)' by '\(album.artistName)' → title:\(titleMatch) artist:\(artistMatch)")
 
-                if titlesMatch(album.title, title) && albumArtistLower == artistLower {
+                if titleMatch && artistMatch {
                     let fullAlbum = try await album.with([.tracks])
                     cache[cacheKey] = fullAlbum
+                    print("🔍 ✓ Match found")
                     return .resolved(fullAlbum)
                 }
             }
+            print("🔍 ✗ No match in results")
         } catch {
-            // Catalog search failed
+            print("🔍 ✗ Search error: \(error)")
         }
 
         return .unavailable(albumID: cacheKey)

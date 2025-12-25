@@ -31,18 +31,25 @@ public class PlayerViewModel: ObservableObject {
     /// Play a disc. Returns true if playback started successfully.
     @discardableResult
     public func playDisc(_ disc: Disc) async -> Bool {
+        print("🎵 playDisc: '\(disc.albumTitle)' by '\(disc.artistName)'")
+
         let albumService = AlbumService()
         let resolution = await albumService.resolveCatalogAlbum(title: disc.albumTitle, artist: disc.artistName)
 
-        if case .resolved(let album) = resolution {
+        switch resolution {
+        case .resolved(let album):
             do {
                 try await playerController.playAlbum(album)
+                print("🎵 Playback started: \(album.tracks?.count ?? 0) tracks")
                 return true
             } catch {
+                print("🎵 Playback error: \(error)")
                 return false
             }
+        case .unavailable(let id):
+            print("🎵 FAILED - unavailable: \(id)")
+            return false
         }
-        return false
     }
 
     public func togglePlayPause() {
