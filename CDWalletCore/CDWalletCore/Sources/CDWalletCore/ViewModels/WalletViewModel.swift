@@ -12,6 +12,7 @@ public class WalletViewModel: ObservableObject {
     private let playlistService = PlaylistService()
     private let albumService = AlbumService()
     private let discCache = DiscCache.shared
+    private let artworkCache = ArtworkCache.shared
 
     private var lastRefreshTime: Date?
 
@@ -116,6 +117,10 @@ public class WalletViewModel: ObservableObject {
             } else {
                 state = .ready(discs: sortedDiscs)
                 discCache.save(discs: sortedDiscs)
+
+                // Clean up artwork cache for albums no longer in wallet
+                let currentAlbumIDs = Set(sortedDiscs.map { $0.id })
+                await artworkCache.cleanup(keepingAlbumIDs: currentAlbumIDs)
             }
 
             lastRefreshTime = Date()

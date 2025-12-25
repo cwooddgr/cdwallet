@@ -118,4 +118,20 @@ public actor ArtworkCache {
     private func cacheKey(albumID: String, size: CGSize) -> String {
         "\(albumID)_\(Int(size.width))x\(Int(size.height))"
     }
+
+    /// Remove cached artwork for albums no longer in the wallet
+    public func cleanup(keepingAlbumIDs: Set<String>) {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: diskCacheDirectory, includingPropertiesForKeys: nil) else {
+            return
+        }
+
+        for fileURL in files {
+            let filename = fileURL.deletingPathExtension().lastPathComponent
+            // Extract album ID from filename (format: "albumID_WIDTHxHEIGHT")
+            if let albumID = filename.components(separatedBy: "_").first,
+               !keepingAlbumIDs.contains(albumID) {
+                try? FileManager.default.removeItem(at: fileURL)
+            }
+        }
+    }
 }
