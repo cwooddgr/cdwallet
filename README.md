@@ -53,7 +53,11 @@ The project is organized as:
 
 - Uses MusicKit iOS 18 APIs with explicit relationship loading (`.with([.tracks, .entries])`)
 - Library album IDs differ from catalog IDs—album matching uses title/artist search
-- Fuzzy matching handles spelling variations (e.g., "Rumours" vs "Rumors") and edition suffixes
+- Fuzzy matching handles many title variations:
+  - Edition suffixes: `(Deluxe Edition)`, `(20th Anniversary Remaster)`, `[Bonus Tracks]`
+  - Punctuation differences: `But Seriously Folks` vs `But Seriously, Folks...`
+  - Subtitles: `The Best Of Elvis Costello` vs `The Best of Elvis Costello: The First 10 Years`
+  - Spelling variations: `Rumours` vs `Rumors`
 
 ## License
 

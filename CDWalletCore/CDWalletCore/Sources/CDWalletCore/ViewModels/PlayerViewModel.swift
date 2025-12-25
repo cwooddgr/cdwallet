@@ -32,8 +32,6 @@ public class PlayerViewModel: ObservableObject {
     @discardableResult
     public func playDisc(_ disc: Disc) async -> Bool {
         let albumService = AlbumService()
-
-        // Resolve catalog album by title/artist - this gets the FULL album with ALL tracks
         let resolution = await albumService.resolveCatalogAlbum(title: disc.albumTitle, artist: disc.artistName)
 
         if case .resolved(let album) = resolution {

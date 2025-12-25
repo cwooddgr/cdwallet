@@ -80,7 +80,6 @@ public actor AlbumService {
     /// This searches the Apple Music catalog and returns the complete album with all tracks
     /// Returns unavailable if catalog search fails - we never play partial albums
     public func resolveCatalogAlbum(title: String, artist: String) async -> AlbumResolution {
-
         // Check cache first (keyed by title|artist)
         let cacheKey = "\(artist.lowercased())|\(title.lowercased())"
         if let cached = cache[cacheKey] {
@@ -92,21 +91,19 @@ public actor AlbumService {
             searchRequest.limit = 10
             let searchResponse = try await searchRequest.response()
 
-            let normalizedTitle = normalizeAlbumTitle(title)
             let artistLower = artist.lowercased()
 
             for album in searchResponse.albums {
-                let albumNormalized = normalizeAlbumTitle(album.title)
                 let albumArtistLower = album.artistName.lowercased()
 
-                if albumNormalized == normalizedTitle && albumArtistLower == artistLower {
+                if titlesMatch(album.title, title) && albumArtistLower == artistLower {
                     let fullAlbum = try await album.with([.tracks])
                     cache[cacheKey] = fullAlbum
                     return .resolved(fullAlbum)
                 }
             }
         } catch {
-            // Catalog search failed - return unavailable (full albums only)
+            // Catalog search failed
         }
 
         return .unavailable(albumID: cacheKey)
@@ -181,24 +178,55 @@ public actor AlbumService {
         // Handle common spelling variations
         normalized = normalized.replacingOccurrences(of: "rumours", with: "rumors")
 
-        // Remove common suffixes that might differ between versions
-        let suffixesToRemove = [
-            " (deluxe edition)",
-            " (deluxe version)",
-            " (remastered)",
-            " (bonus track version)",
-            " (expanded edition)",
-            " - ep",
-            " - single"
-        ]
+        // Remove any trailing parenthetical content (remaster info, deluxe edition, etc.)
+        while let range = normalized.range(of: " \\([^)]+\\)$", options: .regularExpression) {
+            normalized = String(normalized[..<range.lowerBound])
+        }
 
-        for suffix in suffixesToRemove {
+        // Remove any trailing bracketed content
+        while let range = normalized.range(of: " \\[[^\\]]+\\]$", options: .regularExpression) {
+            normalized = String(normalized[..<range.lowerBound])
+        }
+
+        // Remove common dash suffixes
+        let dashSuffixes = [" - ep", " - single"]
+        for suffix in dashSuffixes {
             if normalized.hasSuffix(suffix) {
                 normalized = String(normalized.dropLast(suffix.count))
             }
         }
 
+        // Remove punctuation that varies between library and catalog
+        let punctuationToRemove = CharacterSet(charactersIn: ",.!?;:'\"…")
+        normalized = normalized.components(separatedBy: punctuationToRemove).joined()
+
+        // Collapse multiple spaces
+        while normalized.contains("  ") {
+            normalized = normalized.replacingOccurrences(of: "  ", with: " ")
+        }
+
         return normalized.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Check if two album titles match, allowing for subtitle variations
+    private func titlesMatch(_ title1: String, _ title2: String) -> Bool {
+        let norm1 = normalizeAlbumTitle(title1)
+        let norm2 = normalizeAlbumTitle(title2)
+
+        // Exact match
+        if norm1 == norm2 { return true }
+
+        // One is a prefix of the other (handles subtitles like ": The First 10 Years")
+        if norm1.hasPrefix(norm2) || norm2.hasPrefix(norm1) { return true }
+
+        // Strip everything after colon and check again
+        let base1 = norm1.components(separatedBy: ":").first ?? norm1
+        let base2 = norm2.components(separatedBy: ":").first ?? norm2
+        if base1.trimmingCharacters(in: .whitespaces) == base2.trimmingCharacters(in: .whitespaces) {
+            return true
+        }
+
+        return false
     }
 
     private func resolveAlbum(id: String) async -> AlbumResolution {

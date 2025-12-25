@@ -141,7 +141,12 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - `func searchCatalogAlbumForPlayback(title: String, artist: String) async -> AlbumResolution` — searches catalog for complete album
 - `func resolveCatalogAlbum(title: String, artist: String) async -> AlbumResolution` — alternative catalog search
 - Uses TaskGroup for concurrent searches (max ~6 concurrent requests)
-- Fuzzy matching via `normalizeAlbumTitle()`: handles spelling variations, strips edition suffixes
+- Fuzzy matching via `normalizeAlbumTitle()` and `titlesMatch()`:
+  - Strips trailing parenthetical content: `(Deluxe Edition)`, `(20th Anniversary Remaster)`, etc.
+  - Strips trailing bracketed content: `[Bonus Tracks]`, etc.
+  - Removes punctuation variations: commas, ellipses, quotes
+  - Handles subtitles: matches if one title is prefix of another or base titles match before `:`
+  - Spelling variations: `Rumours` ↔ `Rumors`
 - Cache resolved album metadata in-memory (keyed by title|artist)
 
 ### ArtworkCache
