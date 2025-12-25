@@ -78,7 +78,7 @@ public actor AlbumService {
 
     /// Resolve FULL CATALOG album by title and artist
     /// This searches the Apple Music catalog and returns the complete album with all tracks
-    /// Falls back to library album if catalog search fails
+    /// Returns unavailable if catalog search fails - we never play partial albums
     public func resolveCatalogAlbum(title: String, artist: String) async -> AlbumResolution {
 
         // Check cache first (keyed by title|artist)
@@ -87,7 +87,6 @@ public actor AlbumService {
             return .resolved(cached)
         }
 
-        // Try catalog first
         do {
             var searchRequest = MusicCatalogSearchRequest(term: "\(artist) \(title)", types: [Album.self])
             searchRequest.limit = 10
@@ -107,13 +106,7 @@ public actor AlbumService {
                 }
             }
         } catch {
-            // Catalog search failed - fall through to library search
-        }
-
-        // Fallback: try library album (may have fewer tracks but better than nothing)
-        if let libraryAlbums = libraryAlbums,
-           let resolution = await searchAlbum(title: title, artist: artist, inLibrary: libraryAlbums) {
-            return resolution
+            // Catalog search failed - return unavailable (full albums only)
         }
 
         return .unavailable(albumID: cacheKey)
