@@ -155,6 +155,10 @@ public class WalletViewModel: ObservableObject {
                 state = .empty(reason: .noAlbumsResolved)
                 discCache.clear()
             } else {
+                // Preload artwork for first 2 discs before showing wallet
+                let discsToPreload = Array(sortedDiscs.prefix(2))
+                await artworkCache.preload(discs: discsToPreload, size: CGSize(width: 600, height: 600))
+
                 state = .ready(discs: sortedDiscs)
                 discCache.save(discs: sortedDiscs)
 

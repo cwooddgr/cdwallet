@@ -119,6 +119,17 @@ public actor ArtworkCache {
         "\(albumID)_\(Int(size.width))x\(Int(size.height))"
     }
 
+    /// Preload artwork for multiple discs (used to warm cache before showing wallet)
+    public func preload(discs: [Disc], size: CGSize) async {
+        await withTaskGroup(of: Void.self) { group in
+            for disc in discs {
+                group.addTask {
+                    _ = await self.artwork(for: disc, size: size)
+                }
+            }
+        }
+    }
+
     /// Remove cached artwork for albums no longer in the wallet
     public func cleanup(keepingAlbumIDs: Set<String>) {
         guard let files = try? FileManager.default.contentsOfDirectory(at: diskCacheDirectory, includingPropertiesForKeys: nil) else {

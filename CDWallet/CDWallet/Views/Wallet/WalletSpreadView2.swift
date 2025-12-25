@@ -14,7 +14,7 @@ struct WalletSpreadView2: View {
             HStack(spacing: geometry.size.width * 0.05) {
                 // Left CD
                 if let disc = leftDisc {
-                    CDDiscView(artwork: disc.artwork, size: discSize)
+                    CDDiscView(disc: disc, size: discSize)
                         .onTapGesture { onDiscTapped(disc) }
                 } else {
                     Color.clear.frame(width: discSize, height: discSize)
@@ -22,7 +22,7 @@ struct WalletSpreadView2: View {
 
                 // Right CD
                 if let disc = rightDisc {
-                    CDDiscView(artwork: disc.artwork, size: discSize)
+                    CDDiscView(disc: disc, size: discSize)
                         .onTapGesture { onDiscTapped(disc) }
                 } else {
                     Color.clear.frame(width: discSize, height: discSize)
