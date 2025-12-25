@@ -24,9 +24,14 @@ public class WalletViewModel: ObservableObject {
         let isAuthorized = await authService.ensureAuthorized()
 
         if isAuthorized {
-            // Load from cache first for instant display
+            // Load from cache first for instant display (filtering out unavailable)
             if let cachedDiscs = discCache.load(), !cachedDiscs.isEmpty {
-                state = .ready(discs: cachedDiscs)
+                let availableDiscs = cachedDiscs.filter { disc in
+                    !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
+                }
+                if !availableDiscs.isEmpty {
+                    state = .ready(discs: availableDiscs)
+                }
             }
             // Then refresh from Apple Music
             await refresh()
