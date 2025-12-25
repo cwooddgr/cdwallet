@@ -219,23 +219,49 @@ public actor AlbumService {
 
     /// Check if two album titles match, allowing for subtitle variations
     private func titlesMatch(_ title1: String, _ title2: String) -> Bool {
+        // Extract base titles BEFORE normalization (to preserve : and - separators)
+        let base1 = extractBaseTitle(title1.lowercased())
+        let base2 = extractBaseTitle(title2.lowercased())
+
+        // Compare base titles (with punctuation stripped)
+        let normBase1 = stripPunctuation(base1)
+        let normBase2 = stripPunctuation(base2)
+        if normBase1 == normBase2 { return true }
+
+        // Also try full normalized titles
         let norm1 = normalizeAlbumTitle(title1)
         let norm2 = normalizeAlbumTitle(title2)
 
         // Exact match
         if norm1 == norm2 { return true }
 
-        // One is a prefix of the other (handles subtitles like ": The First 10 Years")
+        // One is a prefix of the other
         if norm1.hasPrefix(norm2) || norm2.hasPrefix(norm1) { return true }
 
-        // Strip everything after colon and check again
-        let base1 = norm1.components(separatedBy: ":").first ?? norm1
-        let base2 = norm2.components(separatedBy: ":").first ?? norm2
-        if base1.trimmingCharacters(in: .whitespaces) == base2.trimmingCharacters(in: .whitespaces) {
-            return true
+        return false
+    }
+
+    /// Extract base title before any subtitle separator (: or -)
+    private func extractBaseTitle(_ title: String) -> String {
+        var base = title
+
+        // Split on colon first
+        if let colonRange = base.range(of: ":") {
+            base = String(base[..<colonRange.lowerBound])
         }
 
-        return false
+        // Split on " - " (space-dash-space to avoid splitting hyphenated words)
+        if let dashRange = base.range(of: " - ") {
+            base = String(base[..<dashRange.lowerBound])
+        }
+
+        return base.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Strip just punctuation (used for base title comparison)
+    private func stripPunctuation(_ text: String) -> String {
+        let punctuation = CharacterSet(charactersIn: ",.!?;:'\"…")
+        return text.components(separatedBy: punctuation).joined()
     }
 
     private func resolveAlbum(id: String) async -> AlbumResolution {
