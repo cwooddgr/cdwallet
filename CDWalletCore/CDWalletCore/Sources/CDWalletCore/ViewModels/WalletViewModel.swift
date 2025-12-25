@@ -126,11 +126,15 @@ public class WalletViewModel: ObservableObject {
                             title: disc.albumTitle,
                             artist: disc.artistName
                         )
-                        if case .resolved = resolution {
+                        switch resolution {
+                        case .resolved:
                             return disc
-                        } else {
-                            // Mark as unavailable for future
+                        case .unavailable:
+                            // Only mark as unavailable when we're SURE it's not in the catalog
                             self.unavailableCache.markUnavailable(title: disc.albumTitle, artist: disc.artistName)
+                            return nil
+                        case .error:
+                            // Temporary error - don't cache, but also don't show in wallet this time
                             return nil
                         }
                     }
@@ -146,7 +150,7 @@ public class WalletViewModel: ObservableObject {
 
             let sortedDiscs = verifiedDiscs.sorted()
 
-            // 7. Update state and cache
+            // 8. Update state and cache
             if sortedDiscs.isEmpty {
                 state = .empty(reason: .noAlbumsResolved)
                 discCache.clear()

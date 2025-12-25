@@ -111,11 +111,11 @@ public actor AlbumService {
                 }
             }
             print("🔍 ✗ No match in results")
+            return .unavailable(albumID: cacheKey)
         } catch {
             print("🔍 ✗ Search error: \(error)")
+            return .error(albumID: cacheKey)
         }
-
-        return .unavailable(albumID: cacheKey)
     }
 
     /// Resolve multiple album IDs concurrently with limit (CATALOG - requires MusicKit token)

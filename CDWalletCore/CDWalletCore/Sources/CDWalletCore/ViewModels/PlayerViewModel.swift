@@ -51,6 +51,10 @@ public class PlayerViewModel: ObservableObject {
             // Mark as unavailable so it gets hidden from wallet
             UnavailableAlbumsCache.shared.markUnavailable(title: disc.albumTitle, artist: disc.artistName)
             return false
+        case .error(let id):
+            print("🎵 FAILED - temporary error: \(id)")
+            // Don't mark as unavailable - might work next time
+            return false
         }
     }
 
