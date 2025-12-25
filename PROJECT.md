@@ -45,9 +45,10 @@ If multiple playlists named “CDs” exist:
 - If no reliable timestamp exists, select the one with the **largest item count** as a heuristic.
 - Always show which playlist is selected in Diagnostics and allow the user to switch (post-MVP). For MVP, only show the selection decision.
 
-### Disc identity rule (no fuzzy matching)
+### Disc identity rule
 - The disc corresponds to the **album ID** associated with playlist entries.
-- Do not attempt to merge “deluxe” vs “standard” vs “clean/explicit” albums in MVP.
+- **Edition deduplication**: Different editions of the same album (e.g., "Album" vs "Album (Deluxe Edition)") are merged during playlist extraction. The first occurrence in playlist order is kept.
+- Clean/explicit variants are NOT merged (different album IDs).
 
 ### Multi-disc albums
 - MVP rule: treat a multi-disc album as a **single disc** in the wallet.

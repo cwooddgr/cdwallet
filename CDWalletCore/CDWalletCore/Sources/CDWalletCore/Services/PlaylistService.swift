@@ -149,16 +149,45 @@ public actor PlaylistService {
 
         print("📀 DEBUG: Extracted \(albumInfo.count) album info pairs")
 
-        // Dedupe while preserving order
+        // Dedupe while preserving order - use normalized titles to merge editions
         var seen = Set<String>()
         let uniqueInfo = albumInfo.filter { info in
-            let key = "\(info.0)|\(info.1)"
+            // Normalize title for dedup (strips "(Deluxe Edition)", "(Remastered)", etc.)
+            let normalizedTitle = normalizeAlbumTitleForDedup(info.0)
+            let key = "\(normalizedTitle)|\(info.1.lowercased())"
             return seen.insert(key).inserted
         }
 
         print("📀 DEBUG: After deduplication: \(uniqueInfo.count) unique albums")
 
         return uniqueInfo
+    }
+
+    // MARK: - Album Title Normalization
+
+    /// Normalize album title for deduplication - strips edition suffixes like "(Deluxe Edition)"
+    private func normalizeAlbumTitleForDedup(_ title: String) -> String {
+        var normalized = title.lowercased()
+
+        // Remove any trailing parenthetical content (remaster info, deluxe edition, etc.)
+        while let range = normalized.range(of: " \\([^)]+\\)$", options: .regularExpression) {
+            normalized = String(normalized[..<range.lowerBound])
+        }
+
+        // Remove any trailing bracketed content
+        while let range = normalized.range(of: " \\[[^\\]]+\\]$", options: .regularExpression) {
+            normalized = String(normalized[..<range.lowerBound])
+        }
+
+        // Remove common dash suffixes
+        let dashSuffixes = [" - ep", " - single", " - deluxe", " - remastered", " - expanded"]
+        for suffix in dashSuffixes {
+            if normalized.hasSuffix(suffix) {
+                normalized = String(normalized.dropLast(suffix.count))
+            }
+        }
+
+        return normalized.trimmingCharacters(in: .whitespaces)
     }
 
     /// Extract unique album IDs from tracks (legacy method for library tracks)

@@ -18,6 +18,8 @@ CD Wallet is a universal iOS/iPadOS app that recreates the experience of browsin
 - ✅ MusicKit authorization and library access
 - ✅ Playlist discovery with deterministic collision handling
 - ✅ Album resolution via title/artist search with fuzzy matching
+- ✅ Edition deduplication (merges "Deluxe Edition", "Remastered", etc. with base album)
+- ✅ Album limit (20 max) with one-time notification dialog
 - ✅ Landscape-only wallet UI with circular CD discs (2 per page spread)
 - ✅ Full album playback from Apple Music catalog
 - ✅ Player view with album art, track listing, and playback controls
@@ -136,6 +138,7 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - `func extractAlbumInfo(from: [Track]) -> [(title: String, artist: String)]` — primary method
 - `func extractAlbumIDs(from: [Track]) -> [String]` — legacy, unused
 - Implements name collision resolution
+- **Edition deduplication**: Normalizes album titles when deduplicating to merge editions (e.g., "21st Century Breakdown" and "21st Century Breakdown (Deluxe Edition)" are treated as the same album). First occurrence in playlist order is kept.
 
 ### AlbumService
 - `func searchAlbums(albumInfo: [(title: String, artist: String)]) async -> [AlbumResolution]` — searches library
@@ -178,9 +181,15 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 ### WalletState enum
 - `needsAuthorization`
 - `loading`
-- `ready(discs)`
+- `ready(discs: [Disc], totalCount: Int)` — totalCount includes albums beyond the limit
 - `empty(reason)` — playlist missing or zero resolved albums
 - `error(userFacingError)`
+
+**Album limit**: `maxWalletAlbums = 20` limits the wallet to 20 albums. Computed properties:
+- `hasMoreAlbums: Bool` — true if totalCount > discs.count
+- `hiddenCount: Int` — number of albums not shown
+
+A one-time modal dialog notifies the user when their playlist exceeds the limit.
 
 ### Error Handling Philosophy
 - Never crash on missing metadata
@@ -254,6 +263,7 @@ public final class DiscCache: Sendable {
 - Sort key generation (including article stripping: "The Beatles" → "beatles, the")
 - Stable sorting by artist → album → albumID
 - Album info deduplication (title/artist pairs with order preservation)
+- Edition deduplication (merges "Album (Deluxe Edition)" with "Album")
 - Album title fuzzy matching (spelling variations, edition suffix stripping)
 - Playlist selection heuristic when multiple "CDs" playlists exist
 - Missing album metadata handling
@@ -268,7 +278,8 @@ public final class DiscCache: Sendable {
 ## Key Product Rules
 
 1. **Album completion is mandatory**: Always play the full album, even if only one track is in the playlist
-2. **Disc identity**: Use album ID; do not merge deluxe/standard/clean/explicit variants
+2. **Disc identity**: Use album ID for display; editions are merged during deduplication (e.g., "Deluxe Edition" and standard are treated as one album, first occurrence kept)
 3. **Sorting**: Ignore leading articles ("The", "A", "An") in artist sort key only; display unchanged
 4. **MVP-first approach**: Validate MusicKit access + full-album playback before building nostalgic animations
 5. **Deterministic behavior**: Same playlist state → same disc order → same selection
+6. **Album limit**: Wallet displays max 20 albums; one-time dialog notifies user if playlist exceeds limit

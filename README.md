@@ -53,6 +53,8 @@ The project is organized as:
 
 - Uses MusicKit iOS 18 APIs with explicit relationship loading (`.with([.tracks, .entries])`)
 - Library album IDs differ from catalog IDs—album matching uses title/artist search
+- **Edition deduplication**: Albums with edition suffixes are merged (e.g., "21st Century Breakdown" and "21st Century Breakdown (Deluxe Edition)" become one entry)
+- **Album limit**: Wallet displays up to 20 albums; a one-time dialog notifies you if your playlist has more
 - Fuzzy matching handles many title variations:
   - Edition suffixes: `(Deluxe Edition)`, `(20th Anniversary Remaster)`, `[Bonus Tracks]`
   - Punctuation differences: `But Seriously Folks` vs `But Seriously, Folks...`
