@@ -35,7 +35,7 @@ public class WalletViewModel: ObservableObject {
                     // Preload artwork for first 2 discs before showing
                     let discsToPreload = Array(availableDiscs.prefix(2))
                     await artworkCache.preload(discs: discsToPreload, size: CGSize(width: 600, height: 600))
-                    state = .ready(discs: availableDiscs)
+                    state = .ready(discs: availableDiscs, totalCount: availableDiscs.count)
                 }
             }
             // Then refresh from Apple Music (will update with latest data)
@@ -123,13 +123,20 @@ public class WalletViewModel: ObservableObject {
             let filteredDiscs = discs.filter { disc in
                 !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
             }
-            print("📀 DEBUG: After unavailable filter: \(filteredDiscs.count) discs")
+            let totalAvailableCount = filteredDiscs.count
+            print("📀 DEBUG: After unavailable filter: \(totalAvailableCount) discs")
 
-            // 7. Verify NEW albums only (ones not in our disc cache)
+            // 7. Limit to maxWalletAlbums (48) - no point processing more than we'll show
+            let limitedDiscs = Array(filteredDiscs.prefix(maxWalletAlbums))
+            if totalAvailableCount > maxWalletAlbums {
+                print("📀 DEBUG: Limiting to \(maxWalletAlbums) discs (hiding \(totalAvailableCount - maxWalletAlbums))")
+            }
+
+            // 8. Verify NEW albums only (ones not in our disc cache)
             // Previously verified albums from cache don't need re-verification
             let cachedAlbumIDs = Set((discCache.load() ?? []).map { $0.id })
             print("📀 DEBUG: Cached album IDs: \(cachedAlbumIDs.count)")
-            let (cachedDiscs, newDiscs) = filteredDiscs.reduce(into: ([Disc](), [Disc]())) { result, disc in
+            let (cachedDiscs, newDiscs) = limitedDiscs.reduce(into: ([Disc](), [Disc]())) { result, disc in
                 if cachedAlbumIDs.contains(disc.id) {
                     result.0.append(disc)
                 } else {
@@ -173,7 +180,7 @@ public class WalletViewModel: ObservableObject {
             let sortedDiscs = (cachedDiscs + verifiedNewDiscs).sorted()
             print("📀 DEBUG: Total discs to show: \(sortedDiscs.count)")
 
-            // 8. Update state and cache
+            // 9. Update state and cache
             if sortedDiscs.isEmpty {
                 state = .empty(reason: .noAlbumsResolved)
                 discCache.clear()
@@ -182,7 +189,7 @@ public class WalletViewModel: ObservableObject {
                 let discsToPreload = Array(sortedDiscs.prefix(2))
                 await artworkCache.preload(discs: discsToPreload, size: CGSize(width: 600, height: 600))
 
-                state = .ready(discs: sortedDiscs)
+                state = .ready(discs: sortedDiscs, totalCount: totalAvailableCount)
                 discCache.save(discs: sortedDiscs)
 
                 // Clean up artwork cache for albums no longer in wallet

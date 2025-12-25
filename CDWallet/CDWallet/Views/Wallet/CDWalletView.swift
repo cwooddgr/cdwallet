@@ -9,7 +9,7 @@ struct CDWalletView: View {
     @State private var showingPlayer = false
 
     var discs: [Disc] {
-        if case .ready(let discs) = walletViewModel.state {
+        if case .ready(let discs, _) = walletViewModel.state {
             return discs
         }
         return []
@@ -29,7 +29,15 @@ struct CDWalletView: View {
             Color(white: 0.1)
                 .ignoresSafeArea()
 
-            VStack {
+            VStack(spacing: 0) {
+                // "More albums" indicator if needed
+                if walletViewModel.state.hasMoreAlbums {
+                    Text("Showing \(discs.count) of \(discs.count + walletViewModel.state.hiddenCount) albums")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(.top, 8)
+                }
+
                 // CD spreads with paging
                 TabView(selection: $currentPage) {
                     ForEach(spreads.indices, id: \.self) { index in

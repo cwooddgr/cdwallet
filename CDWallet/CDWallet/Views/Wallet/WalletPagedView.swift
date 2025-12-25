@@ -8,7 +8,7 @@ struct WalletPagedView: View {
     @State private var showingNowPlaying = false
 
     var discs: [Disc] {
-        if case .ready(let discs) = walletViewModel.state {
+        if case .ready(let discs, _) = walletViewModel.state {
             return discs
         }
         return []
