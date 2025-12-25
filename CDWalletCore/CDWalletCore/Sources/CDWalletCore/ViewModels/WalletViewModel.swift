@@ -113,11 +113,38 @@ public class WalletViewModel: ObservableObject {
                 return nil
             }
 
-            // 6. Filter out albums known to be unavailable, then sort
-            let availableDiscs = discs.filter { disc in
+            // 6. Filter out albums known to be unavailable
+            let potentialDiscs = discs.filter { disc in
                 !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
             }
-            let sortedDiscs = availableDiscs.sorted()
+
+            // 7. Verify catalog availability for remaining albums (in parallel)
+            let verifiedDiscs = await withTaskGroup(of: Disc?.self) { group in
+                for disc in potentialDiscs {
+                    group.addTask {
+                        let resolution = await self.albumService.resolveCatalogAlbum(
+                            title: disc.albumTitle,
+                            artist: disc.artistName
+                        )
+                        if case .resolved = resolution {
+                            return disc
+                        } else {
+                            // Mark as unavailable for future
+                            self.unavailableCache.markUnavailable(title: disc.albumTitle, artist: disc.artistName)
+                            return nil
+                        }
+                    }
+                }
+                var results: [Disc] = []
+                for await disc in group {
+                    if let disc = disc {
+                        results.append(disc)
+                    }
+                }
+                return results
+            }
+
+            let sortedDiscs = verifiedDiscs.sorted()
 
             // 7. Update state and cache
             if sortedDiscs.isEmpty {

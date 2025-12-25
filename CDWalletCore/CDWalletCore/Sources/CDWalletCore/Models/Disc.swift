@@ -2,7 +2,7 @@ import Foundation
 import MusicKit
 
 /// Represents one "CD" in the wallet, backed by a resolved Apple Music album
-public struct Disc: Identifiable, Hashable {
+public struct Disc: Identifiable, Hashable, @unchecked Sendable {
     public let id: String // albumID
     public let albumID: MusicItemID
     public let artistName: String

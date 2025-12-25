@@ -22,14 +22,15 @@ CD Wallet is a universal iOS/iPadOS app that recreates the experience of browsin
 - ✅ Full album playback from Apple Music catalog
 - ✅ Player view with album art, track listing, and playback controls
 - ✅ CD player-style display (track number + elapsed time with green LCD styling)
-- ✅ Manual refresh and comprehensive diagnostics
+- ✅ Refresh on app launch with catalog availability verification
+- ✅ Disk caching for artwork and disc list (fast startup)
+- ✅ Unavailable album filtering (albums not on Apple Music hidden)
 - ✅ Sorting by artist → album → albumID with article stripping
 - ✅ Unit tests for sorting and playlist selection logic
 
 **Known Limitations**:
 - iOS 18.0+ required (uses iOS 18 MusicKit APIs)
 - Playlist modification timestamps not exposed by MusicKit (uses item count heuristic)
-- In-memory artwork cache only (cleared on app restart)
 - Physical device required for testing (MusicKit not available in simulator)
 
 ## Development Commands
@@ -37,8 +38,8 @@ CD Wallet is a universal iOS/iPadOS app that recreates the experience of browsin
 **Project location**: `CDWallet/CDWallet.xcodeproj`
 **Core package**: `CDWalletCore/CDWalletCore/Package.swift`
 
-- Build: Cmd+B in Xcode or `xcodebuild -project CDWallet/CDWallet.xcodeproj -scheme CDWallet -destination 'platform=iOS Simulator,name=iPhone 16' build`
-- Run tests: Cmd+U in Xcode or `xcodebuild test -project CDWallet/CDWallet.xcodeproj -scheme CDWallet -destination 'platform=iOS Simulator,name=iPhone 16'`
+- Build: Cmd+B in Xcode or `xcodebuild -project CDWallet/CDWallet.xcodeproj -scheme CDWallet -destination 'platform=iOS Simulator,name=iPhone 17' build`
+- Run tests: Cmd+U in Xcode or `xcodebuild test -project CDWallet/CDWallet.xcodeproj -scheme CDWallet -destination 'platform=iOS Simulator,name=iPhone 17'`
 - Run single test: Right-click test method in Xcode or use `-only-testing:CDWalletCoreTests/TestClassName/testMethodName`
 
 **Note**: MusicKit requires a physical device with Apple Music subscription. Simulator testing limited to UI/logic tests only.
@@ -150,9 +151,20 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - Cache resolved album metadata in-memory (keyed by title|artist)
 
 ### ArtworkCache
-- In-memory NSCache keyed by `albumID+size` (50 item limit)
+- Two-tier cache: in-memory NSCache (50 item limit) + disk cache (`Caches/ArtworkCache/*.jpg`)
+- Keyed by `albumID+size`
 - Falls back to catalog search when library artwork unavailable
-- No disk cache
+- Cleanup removes cached artwork for albums no longer in wallet
+
+### DiscCache
+- Disk cache for disc list (`Caches/disc_cache.json`)
+- Enables instant wallet display on app launch
+- Refresh updates cache after verifying catalog availability
+
+### UnavailableAlbumsCache
+- Tracks albums not found in Apple Music catalog (`Caches/unavailable_albums.json`)
+- Keyed by `artist|title` (lowercase)
+- Prevents showing unavailable albums in wallet
 
 ### PlayerController
 - Uses `ApplicationMusicPlayer.shared` (app-controlled queue)
@@ -174,6 +186,37 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - Never crash on missing metadata
 - Surface partial failures in Diagnostics screen
 - Show clear states: not authorized / playlist missing / some unavailable
+
+## Swift Concurrency Patterns
+
+### Sendable Conformance
+When using `TaskGroup` or passing objects across actor/task boundaries, Swift requires `Sendable` conformance.
+
+**Pattern for value types with MusicKit types:**
+MusicKit types like `Artwork` and `MusicItemID` may not formally conform to `Sendable`, but are safe in practice. Mark structs containing these as `@unchecked Sendable`:
+
+```swift
+public struct Disc: Identifiable, Hashable, @unchecked Sendable {
+    public let artwork: Artwork?  // MusicKit type, safe but not formally Sendable
+    public let albumID: MusicItemID
+    // ...
+}
+```
+
+**Pattern for cache classes:**
+Use `final class` with `Sendable` conformance and thread-safe storage:
+
+```swift
+public final class DiscCache: Sendable {
+    private let cacheURL: URL  // Immutable after init
+    // File I/O is thread-safe
+}
+```
+
+**When to use `@unchecked Sendable`:**
+- Immutable structs containing MusicKit types
+- Classes with immutable state or thread-safe operations (FileManager, UserDefaults)
+- Never for classes with mutable shared state
 
 ## Implementation Milestones
 
@@ -198,7 +241,6 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - Page flip animation, disc pull-out gestures
 - Playlist switching UI for name collisions
 - Search/filtering, haptics, CD case textures
-- Disk-based artwork cache
 
 ## Required Xcode Configuration
 
