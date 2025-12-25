@@ -1,7 +1,7 @@
 import Foundation
 
 /// Maximum number of albums to display in the wallet
-public let maxWalletAlbums = 48
+public let maxWalletAlbums = 20
 
 /// Represents the current state of the wallet
 public enum WalletState: Equatable {
