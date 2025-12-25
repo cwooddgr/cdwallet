@@ -24,16 +24,21 @@ public class WalletViewModel: ObservableObject {
         let isAuthorized = await authService.ensureAuthorized()
 
         if isAuthorized {
+            state = .loading
+
             // Load from cache first for instant display (filtering out unavailable)
             if let cachedDiscs = discCache.load(), !cachedDiscs.isEmpty {
                 let availableDiscs = cachedDiscs.filter { disc in
                     !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
                 }
                 if !availableDiscs.isEmpty {
+                    // Preload artwork for first 2 discs before showing
+                    let discsToPreload = Array(availableDiscs.prefix(2))
+                    await artworkCache.preload(discs: discsToPreload, size: CGSize(width: 600, height: 600))
                     state = .ready(discs: availableDiscs)
                 }
             }
-            // Then refresh from Apple Music
+            // Then refresh from Apple Music (will update with latest data)
             await refresh()
         } else {
             state = .needsAuthorization
@@ -118,34 +123,40 @@ public class WalletViewModel: ObservableObject {
                 !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
             }
 
-            // 7. Verify catalog availability for remaining albums (in parallel)
-            let verifiedDiscs = await withTaskGroup(of: Disc?.self) { group in
-                for disc in potentialDiscs {
-                    group.addTask {
-                        let resolution = await self.albumService.resolveCatalogAlbum(
-                            title: disc.albumTitle,
-                            artist: disc.artistName
-                        )
-                        switch resolution {
-                        case .resolved:
-                            return disc
-                        case .unavailable:
-                            // Only mark as unavailable when we're SURE it's not in the catalog
-                            self.unavailableCache.markUnavailable(title: disc.albumTitle, artist: disc.artistName)
-                            return nil
-                        case .error:
-                            // Temporary error - don't cache, but also don't show in wallet this time
-                            return nil
+            // 7. Verify catalog availability for remaining albums (throttled to avoid rate limiting)
+            let maxConcurrent = 5
+            var verifiedDiscs: [Disc] = []
+
+            for chunk in potentialDiscs.chunked(into: maxConcurrent) {
+                let chunkResults = await withTaskGroup(of: Disc?.self) { group in
+                    for disc in chunk {
+                        group.addTask {
+                            let resolution = await self.albumService.resolveCatalogAlbum(
+                                title: disc.albumTitle,
+                                artist: disc.artistName
+                            )
+                            switch resolution {
+                            case .resolved:
+                                return disc
+                            case .unavailable:
+                                // Only mark as unavailable when we're SURE it's not in the catalog
+                                self.unavailableCache.markUnavailable(title: disc.albumTitle, artist: disc.artistName)
+                                return nil
+                            case .error:
+                                // Temporary error - don't cache, but also don't show in wallet this time
+                                return nil
+                            }
                         }
                     }
-                }
-                var results: [Disc] = []
-                for await disc in group {
-                    if let disc = disc {
-                        results.append(disc)
+                    var results: [Disc] = []
+                    for await disc in group {
+                        if let disc = disc {
+                            results.append(disc)
+                        }
                     }
+                    return results
                 }
-                return results
+                verifiedDiscs.append(contentsOf: chunkResults)
             }
 
             let sortedDiscs = verifiedDiscs.sorted()
@@ -230,6 +241,17 @@ public class WalletViewModel: ObservableObject {
                 lastRefreshTime: lastRefreshTime,
                 lastError: lastError
             )
+        }
+    }
+}
+
+// MARK: - Array Extension
+
+private extension Array {
+    /// Split array into chunks of specified size
+    func chunked(into size: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
         }
     }
 }
