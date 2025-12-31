@@ -75,35 +75,27 @@ struct CDWalletBinderView: View {
                 walletBackground
 
                 // Left side pages
-                // When flipping backward: show prevSpreadPreview, hide leftPage
-                // Otherwise: show leftPage
                 HStack(spacing: 0) {
-                    ZStack {
+                    if flipState.direction == .backward {
                         // Preview of previous spread (revealed when flipping backward)
                         prevSpreadPreview(size: pageSize)
-                            .opacity(flipState.direction == .backward ? 1 : 0)
-
-                        // Static left page (hidden when flipping backward)
+                    } else {
+                        // Static left page
                         leftPage(size: pageSize)
-                            .opacity(flipState.direction == .backward ? 0 : 1)
                     }
                     Spacer()
                 }
                 .zIndex(1)
 
                 // Right side pages
-                // When flipping forward: show nextSpreadPreview, hide rightPage
-                // Otherwise: show rightPage
                 HStack(spacing: 0) {
                     Spacer()
-                    ZStack {
+                    if flipState.direction == .forward {
                         // Preview of next spread (revealed when flipping forward)
                         nextSpreadPreview(size: pageSize)
-                            .opacity(flipState.direction == .forward ? 1 : 0)
-
-                        // Static right page (hidden when flipping forward)
+                    } else {
+                        // Static right page
                         rightPage(size: pageSize)
-                            .opacity(flipState.direction == .forward ? 0 : 1)
                     }
                 }
                 .zIndex(1)
@@ -314,14 +306,13 @@ struct CDWalletBinderView: View {
             withAnimation(.easeOut(duration: 0.3)) {
                 flipState.currentAngle = 180
             }
-            // After animation: update index first, then reset flip state
+            // After animation: hide flipping page first, then update index
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                // Reset direction first to hide flipping page
+                flipState = PageFlipState()
+                // Then update index so static pages show new content
                 currentSpreadIndex += 1
-                // Small delay before resetting direction to ensure smooth handoff
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    flipState = PageFlipState()
-                    isAnimating = false
-                }
+                isAnimating = false
             }
 
         case .backward:
@@ -333,14 +324,13 @@ struct CDWalletBinderView: View {
             withAnimation(.easeOut(duration: 0.3)) {
                 flipState.currentAngle = 180
             }
-            // After animation: update index first, then reset flip state
+            // After animation: hide flipping page first, then update index
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                // Reset direction first to hide flipping page
+                flipState = PageFlipState()
+                // Then update index so static pages show new content
                 currentSpreadIndex -= 1
-                // Small delay before resetting direction to ensure smooth handoff
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    flipState = PageFlipState()
-                    isAnimating = false
-                }
+                isAnimating = false
             }
 
         case .none:

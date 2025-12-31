@@ -77,7 +77,7 @@ struct CDPageView: View {
             axis: (x: 0, y: 1, z: 0),
             anchor: anchor,
             anchorZ: 0,
-            perspective: 1/500
+            perspective: 0
         )
     }
 }
