@@ -34,6 +34,9 @@ struct CDWalletBinderView: View {
     // Which direction we're currently dragging (nil = not dragging)
     @State private var dragDirection: FlipDirection? = nil
 
+    // Which side of screen the drag started on (nil = not dragging)
+    @State private var dragStartedOnLeft: Bool? = nil
+
     // Whether we're in a completion/cancel animation
     @State private var isAnimating: Bool = false
 
@@ -84,7 +87,7 @@ struct CDWalletBinderView: View {
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        handleDragChanged(value, pageWidth: pageWidth)
+                        handleDragChanged(value, pageWidth: pageWidth, screenWidth: geometry.size.width)
                     }
                     .onEnded { value in
                         handleDragEnded(value)
@@ -166,17 +169,32 @@ struct CDWalletBinderView: View {
 
     // MARK: - Gesture Handling
 
-    private func handleDragChanged(_ value: DragGesture.Value, pageWidth: CGFloat) {
+    private func handleDragChanged(_ value: DragGesture.Value, pageWidth: CGFloat, screenWidth: CGFloat) {
         guard !isAnimating else { return }
+
+        // Record which side the drag started on (first touch)
+        if dragStartedOnLeft == nil {
+            let startX = value.startLocation.x
+            dragStartedOnLeft = startX < screenWidth / 2
+        }
 
         let translation = value.translation.width
 
         // Detect direction if not yet set
+        // Only allow direction that matches the side where drag started
         if dragDirection == nil {
-            if translation < -10 && canGoForward {
-                dragDirection = .forward
-            } else if translation > 10 && canGoBackward {
-                dragDirection = .backward
+            if let startedOnLeft = dragStartedOnLeft {
+                if startedOnLeft {
+                    // Started on left side: only allow backward (drag right)
+                    if translation > 10 && canGoBackward {
+                        dragDirection = .backward
+                    }
+                } else {
+                    // Started on right side: only allow forward (drag left)
+                    if translation < -10 && canGoForward {
+                        dragDirection = .forward
+                    }
+                }
             }
         }
 
@@ -250,6 +268,7 @@ struct CDWalletBinderView: View {
     private func resetDragState() {
         dragAngle = 0
         dragDirection = nil
+        dragStartedOnLeft = nil
     }
 }
 
@@ -295,13 +314,6 @@ struct BinderPageView: View {
         }
         .frame(width: pageSize.width, height: pageSize.height)
         .clipShape(RoundedRectangle(cornerRadius: 4))
-        // Shadow for depth
-        .shadow(
-            color: .black.opacity(0.3 * min(1, abs(rotationAngle - 90) / 45)),
-            radius: 8,
-            x: rotationAngle < 90 ? -4 : 4,
-            y: 2
-        )
         // 3D rotation - always rotate around leading edge
         .rotation3DEffect(
             .degrees(rotationAngle),
