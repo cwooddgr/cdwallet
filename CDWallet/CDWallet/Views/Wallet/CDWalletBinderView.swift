@@ -308,7 +308,7 @@ struct BinderPageView: View {
             axis: (x: 0, y: 1, z: 0),
             anchor: .leading,
             anchorZ: 0,
-            perspective: 0
+            perspective: -1.0/25.0
         )
         // Position: offset so leading edge is at center spine
         .offset(x: pageSize.width / 2)
