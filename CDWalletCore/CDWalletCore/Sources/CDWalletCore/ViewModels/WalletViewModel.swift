@@ -5,7 +5,7 @@ import Combine
 /// Main view model coordinating wallet state
 @MainActor
 public class WalletViewModel: ObservableObject {
-    @Published public private(set) var state: WalletState = .needsAuthorization
+    @Published public private(set) var state: WalletState = .loading
     @Published public private(set) var diagnostics: DiagnosticsSnapshot?
 
     private let authService = AuthorizationService()
@@ -17,7 +17,21 @@ public class WalletViewModel: ObservableObject {
 
     private var lastRefreshTime: Date?
 
-    public init() {}
+    public init() {
+        // Check authorization synchronously to avoid flashing auth screen
+        if MusicAuthorization.currentStatus != .authorized {
+            state = .needsAuthorization
+        } else if let cachedDiscs = discCache.load(), !cachedDiscs.isEmpty {
+            // If we have cached data, show it immediately (no loading flash)
+            let availableDiscs = cachedDiscs.filter { disc in
+                !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
+            }
+            if !availableDiscs.isEmpty {
+                state = .ready(discs: availableDiscs, totalCount: availableDiscs.count)
+            }
+        }
+        // Otherwise stays at .loading (default)
+    }
 
     /// Initial load: check authorization and load wallet
     public func initialize() async {
@@ -126,7 +140,7 @@ public class WalletViewModel: ObservableObject {
             let totalAvailableCount = filteredDiscs.count
             print("📀 DEBUG: After unavailable filter: \(totalAvailableCount) discs")
 
-            // 7. Limit to maxWalletAlbums (48) - no point processing more than we'll show
+            // 7. Limit to maxWalletAlbums (20) - no point processing more than we'll show
             let limitedDiscs = Array(filteredDiscs.prefix(maxWalletAlbums))
             if totalAvailableCount > maxWalletAlbums {
                 print("📀 DEBUG: Limiting to \(maxWalletAlbums) discs (hiding \(totalAvailableCount - maxWalletAlbums))")
@@ -189,7 +203,10 @@ public class WalletViewModel: ObservableObject {
                 let discsToPreload = Array(sortedDiscs.prefix(2))
                 await artworkCache.preload(discs: discsToPreload, size: CGSize(width: 600, height: 600))
 
-                state = .ready(discs: sortedDiscs, totalCount: totalAvailableCount)
+                // Only report higher totalCount if we actually hit the limit
+                // (not just because some albums failed verification)
+                let reportedTotal = totalAvailableCount > maxWalletAlbums ? totalAvailableCount : sortedDiscs.count
+                state = .ready(discs: sortedDiscs, totalCount: reportedTotal)
                 discCache.save(discs: sortedDiscs)
 
                 // Clean up artwork cache for albums no longer in wallet
