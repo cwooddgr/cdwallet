@@ -241,11 +241,11 @@ struct CDWalletBinderView: View {
 
         isAnimating = true
 
-        withAnimation(.easeOut(duration: 0.3)) {
+        withAnimation(.easeOut(duration: 0.6)) {
             dragAngle = 180
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             // Update which pages are flipped
             switch direction {
             case .forward:
@@ -264,11 +264,11 @@ struct CDWalletBinderView: View {
     private func cancelFlip() {
         isAnimating = true
 
-        withAnimation(.easeOut(duration: 0.25)) {
+        withAnimation(.easeOut(duration: 0.5)) {
             dragAngle = 0
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             resetDragState()
             isAnimating = false
         }
