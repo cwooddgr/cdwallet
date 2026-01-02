@@ -20,7 +20,10 @@ struct CDWalletView: View {
         CDWalletBinderView(discs: discs) { disc in
             Task {
                 if playerViewModel.isDiscLoaded(disc) {
-                    // Same disc - just show player (keep paused state)
+                    // Same disc - resume if app-paused, keep paused if user-paused
+                    if !playerViewModel.wasUserPaused {
+                        await playerViewModel.resume()
+                    }
                     showingPlayer = true
                 } else {
                     // Different disc - start fresh

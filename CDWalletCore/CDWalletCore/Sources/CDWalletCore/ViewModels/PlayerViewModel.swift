@@ -11,6 +11,9 @@ public class PlayerViewModel: ObservableObject {
     @Published public private(set) var playbackTime: TimeInterval = 0
     @Published public private(set) var currentDiscID: String?
 
+    /// Tracks if pause was user-initiated (vs app-initiated when closing player)
+    @Published public private(set) var wasUserPaused: Bool = false
+
     private let playerController = PlayerController.shared
     private var cancellables = Set<AnyCancellable>()
 
@@ -42,6 +45,7 @@ public class PlayerViewModel: ObservableObject {
             do {
                 try await playerController.playAlbum(album)
                 currentDiscID = disc.id
+                wasUserPaused = false
                 print("🎵 Playback started: \(album.tracks?.count ?? 0) tracks")
                 return true
             } catch {
@@ -61,7 +65,13 @@ public class PlayerViewModel: ObservableObject {
     }
 
     public func togglePlayPause() {
-        playerController.togglePlayPause()
+        if isPlaying {
+            userPause()
+        } else {
+            Task {
+                await resume()
+            }
+        }
     }
 
     public func skipNext() {
@@ -81,11 +91,20 @@ public class PlayerViewModel: ObservableObject {
         currentDiscID = nil
     }
 
-    public func pause() {
+    /// Pause initiated by user (tap pause button)
+    public func userPause() {
+        wasUserPaused = true
+        playerController.pause()
+    }
+
+    /// Pause initiated by app (closing player view)
+    public func appPause() {
+        // Don't change wasUserPaused - preserve previous state
         playerController.pause()
     }
 
     public func resume() async {
+        wasUserPaused = false
         await playerController.resume()
     }
 
