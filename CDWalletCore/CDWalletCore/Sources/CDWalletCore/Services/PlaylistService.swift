@@ -190,6 +190,33 @@ public actor PlaylistService {
         return normalized.trimmingCharacters(in: .whitespaces)
     }
 
+    /// Fetch a lightweight fingerprint of the playlist (just track IDs)
+    /// This is a minimal API call to detect if the playlist has changed
+    public func fetchPlaylistFingerprint(playlistID: MusicItemID) async throws -> Set<String> {
+        var request = MusicLibraryRequest<Playlist>()
+        request.filter(matching: \.id, equalTo: playlistID)
+
+        let response = try await request.response()
+        guard let playlist = response.items.first else {
+            throw PlaylistServiceError.noPlaylistFound
+        }
+
+        // Load just entries (lighter than full tracks)
+        let detailedPlaylist = try await playlist.with([.entries])
+
+        var trackIDs = Set<String>()
+
+        if let entries = detailedPlaylist.entries {
+            for entry in entries {
+                if case .song(let song) = entry.item {
+                    trackIDs.insert(song.id.rawValue)
+                }
+            }
+        }
+
+        return trackIDs
+    }
+
     /// Extract unique album IDs from tracks (legacy method for library tracks)
     public func extractAlbumIDs(from tracks: [Track]) -> [String] {
         print("📀 DEBUG: Extracting album IDs from \(tracks.count) tracks")

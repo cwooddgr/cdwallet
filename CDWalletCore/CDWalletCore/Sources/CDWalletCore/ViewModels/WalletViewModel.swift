@@ -14,8 +14,10 @@ public class WalletViewModel: ObservableObject {
     private let discCache = DiscCache.shared
     private let artworkCache = ArtworkCache.shared
     private let unavailableCache = UnavailableAlbumsCache.shared
+    private let fingerprintCache = PlaylistFingerprintCache.shared
 
     private var lastRefreshTime: Date?
+    private var cachedPlaylistID: MusicItemID?
 
     public init() {
         // Check authorization synchronously to avoid flashing auth screen
@@ -72,6 +74,36 @@ public class WalletViewModel: ObservableObject {
         }
     }
 
+    /// Check if playlist has changed, and only refresh if needed
+    /// Returns true if a refresh was performed
+    @discardableResult
+    public func refreshIfNeeded() async -> Bool {
+        // If we don't have a cached playlist ID, do a full refresh
+        guard let playlistID = cachedPlaylistID else {
+            await refresh()
+            return true
+        }
+
+        do {
+            // Lightweight fingerprint check
+            let currentFingerprint = try await playlistService.fetchPlaylistFingerprint(playlistID: playlistID)
+
+            if fingerprintCache.hasChanged(currentTrackIDs: currentFingerprint) {
+                print("📀 Playlist changed, refreshing...")
+                await refresh()
+                return true
+            } else {
+                print("📀 Playlist unchanged, skipping refresh")
+                return false
+            }
+        } catch {
+            // If fingerprint check fails, fall back to full refresh
+            print("📀 Fingerprint check failed: \(error), refreshing anyway...")
+            await refresh()
+            return true
+        }
+    }
+
     /// Refresh wallet from "CDs" playlist
     public func refresh() async {
         // Only show loading if we don't have cached data
@@ -84,6 +116,7 @@ public class WalletViewModel: ObservableObject {
         do {
             // 1. Locate "CDs" playlist
             let selection = try await playlistService.locateCDsPlaylist()
+            cachedPlaylistID = selection.playlist.id
 
             // 2. Fetch playlist items
             let tracks = try await playlistService.fetchPlaylistItems(playlistID: selection.playlist.id)
@@ -214,6 +247,10 @@ public class WalletViewModel: ObservableObject {
                     : sortedDiscs.count
                 state = .ready(discs: sortedDiscs, totalCount: reportedTotal)
                 discCache.save(discs: sortedDiscs)
+
+                // Save fingerprint for change detection
+                let trackIDs = Set(tracks.map { $0.id.rawValue })
+                fingerprintCache.save(trackIDs: trackIDs)
 
                 // Clean up artwork cache for albums no longer in wallet
                 let currentAlbumIDs = Set(sortedDiscs.map { $0.id })

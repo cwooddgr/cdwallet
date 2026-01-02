@@ -24,10 +24,10 @@ struct CDWalletApp: App {
                     await walletViewModel.initialize()
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
-                    // Refresh when returning from background (not on cold launch)
+                    // Check for playlist changes when returning from background
                     if oldPhase == .background && newPhase == .active {
                         Task {
-                            await walletViewModel.refresh()
+                            await walletViewModel.refreshIfNeeded()
                         }
                     }
                 }
