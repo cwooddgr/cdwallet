@@ -35,13 +35,6 @@ public struct Disc: Identifiable, Hashable, @unchecked Sendable {
         // Compute sort keys
         self.artistSortKey = Self.computeArtistSortKey(from: album.artistName)
         self.albumSortKey = Self.computeAlbumSortKey(from: album.title)
-
-        // Debug: log release date
-        if let date = self.releaseDate {
-            print("📀 Disc '\(album.title)' by '\(album.artistName)' releaseDate: \(date)")
-        } else {
-            print("📀 Disc '\(album.title)' by '\(album.artistName)' releaseDate: NIL")
-        }
     }
 
     /// Initialize from cached data (artwork loaded separately via ArtworkCache)
