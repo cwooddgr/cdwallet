@@ -19,9 +19,16 @@ struct CDWalletView: View {
     var body: some View {
         CDWalletBinderView(discs: discs) { disc in
             Task {
-                let success = await playerViewModel.playDisc(disc)
-                if success {
+                if playerViewModel.isDiscLoaded(disc) {
+                    // Same disc - resume from where we left off
+                    await playerViewModel.resume()
                     showingPlayer = true
+                } else {
+                    // Different disc - start fresh
+                    let success = await playerViewModel.playDisc(disc)
+                    if success {
+                        showingPlayer = true
+                    }
                 }
             }
         }
@@ -29,7 +36,7 @@ struct CDWalletView: View {
             LandscapePlayerView()
                 .environmentObject(playerViewModel)
         }
-        .alert("CD Wallet Limit", isPresented: $showingLimitAlert) {
+        .alert("CD Wally Limit", isPresented: $showingLimitAlert) {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Your CDs playlist has \(discs.count + walletViewModel.state.hiddenCount) albums. Only the first \(discs.count) are shown.")

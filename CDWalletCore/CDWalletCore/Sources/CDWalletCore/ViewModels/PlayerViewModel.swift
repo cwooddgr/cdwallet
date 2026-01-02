@@ -9,6 +9,7 @@ public class PlayerViewModel: ObservableObject {
     @Published public private(set) var currentTrack: Track?
     @Published public private(set) var isPlaying: Bool = false
     @Published public private(set) var playbackTime: TimeInterval = 0
+    @Published public private(set) var currentDiscID: String?
 
     private let playerController = PlayerController.shared
     private var cancellables = Set<AnyCancellable>()
@@ -40,6 +41,7 @@ public class PlayerViewModel: ObservableObject {
         case .resolved(let album), .resolvedWithDate(let album, _):
             do {
                 try await playerController.playAlbum(album)
+                currentDiscID = disc.id
                 print("🎵 Playback started: \(album.tracks?.count ?? 0) tracks")
                 return true
             } catch {
@@ -72,5 +74,23 @@ public class PlayerViewModel: ObservableObject {
 
     public func seek(to seconds: TimeInterval) {
         playerController.seek(to: seconds)
+    }
+
+    public func stop() {
+        playerController.stop()
+        currentDiscID = nil
+    }
+
+    public func pause() {
+        playerController.pause()
+    }
+
+    public func resume() async {
+        await playerController.resume()
+    }
+
+    /// Check if the given disc is already loaded (paused or playing)
+    public func isDiscLoaded(_ disc: Disc) -> Bool {
+        return currentDiscID == disc.id
     }
 }

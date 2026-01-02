@@ -1,16 +1,17 @@
-# CD Wallet
+# CD Wally
 
 A universal iOS/iPadOS app that recreates the experience of browsing a physical CD wallet for your Apple Music library.
 
 ## Overview
 
-CD Wallet lets you curate a collection of albums in a "CDs" playlist, then browse them visually like flipping through a real CD wallet. Tap any album to play it in full—always the complete album, never just the tracks you've added to your library.
+CD Wally lets you curate a collection of albums in a "CDs" playlist, then browse them visually like flipping through a real CD wallet. Tap any album to play it in full—always the complete album, never just the tracks you've added to your library.
 
 ## Features
 
-- **Wallet-style browsing**: Swipe through pages of circular CD discs with album artwork
+- **Wallet-style browsing**: Flip through pages of circular CD discs with realistic 3D page-turn animation
 - **Landscape-only UI**: Optimized for landscape orientation like a real CD wallet
 - **Full album playback**: Tapping a disc plays the complete catalog version with all tracks
+- **Resume playback**: Close the player to pause; tap the same disc to resume where you left off
 - **CD player display**: Shows current track number and elapsed time with retro LCD styling
 - **Track listing**: View all tracks with the current track highlighted
 - **Smart artwork loading**: Falls back to Apple Music catalog when local artwork isn't cached
@@ -34,10 +35,10 @@ CD Wallet lets you curate a collection of albums in a "CDs" playlist, then brows
 
 1. In Apple Music, create a playlist named **"CDs"**
 2. Add one or more tracks from any albums you want in your wallet
-3. Open CD Wallet and grant Apple Music access
+3. Open CD Wally and grant Apple Music access
 4. Browse your albums and tap to play
 
-The app uses your playlist as an album picker—you only need one track per album. When you tap an album, CD Wallet finds the full version in the Apple Music catalog and plays all tracks in order.
+The app uses your playlist as an album picker—you only need one track per album. When you tap an album, CD Wally finds the full version in the Apple Music catalog and plays all tracks in order.
 
 ## Architecture
 

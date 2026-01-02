@@ -41,6 +41,7 @@ struct LandscapePlayerView: View {
                 HStack {
                     Spacer()
                     Button {
+                        playerViewModel.pause()
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")

@@ -68,6 +68,21 @@ public class PlayerController: ObservableObject {
         }
     }
 
+    public func stop() {
+        player.stop()
+        currentAlbum = nil
+        currentTrack = nil
+        playbackTime = 0
+    }
+
+    public func pause() {
+        player.pause()
+    }
+
+    public func resume() async {
+        try? await player.play()
+    }
+
     public func skipToNextTrack() {
         Task {
             try? await player.skipToNextEntry()

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CD Wallet is a universal iOS/iPadOS app that recreates the experience of browsing a Case Logic CD wallet for Apple Music. The app uses a user's "CDs" playlist as an album picker and defaults to full-album listening.
+CD Wally is a universal iOS/iPadOS app that recreates the experience of browsing a Case Logic CD wallet for Apple Music. The app uses a user's "CDs" playlist as an album picker and defaults to full-album listening.
 
 **Tech Stack**: Swift, SwiftUI, MusicKit, Swift Concurrency (async/await), MVVM architecture
 
@@ -27,7 +27,10 @@ CD Wallet is a universal iOS/iPadOS app that recreates the experience of browsin
 - ✅ Refresh on app launch with catalog availability verification
 - ✅ Disk caching for artwork and disc list (fast startup)
 - ✅ Unavailable album filtering (albums not on Apple Music hidden)
-- ✅ Sorting by artist → album → albumID with article stripping
+- ✅ Sorting by artist → release date → albumID with article stripping
+- ✅ Release date enrichment from Apple Music catalog (with copyright year fallback)
+- ✅ 3D page flip animation with drag gesture support
+- ✅ Player pause/resume (closing player pauses; tapping same CD resumes)
 - ✅ Unit tests for sorting and playlist selection logic
 
 **Known Limitations**:
@@ -85,7 +88,7 @@ CD Wallet is a universal iOS/iPadOS app that recreates the experience of browsin
    - Handle unavailable albums gracefully (show in diagnostics, omit from wallet)
 4. **Sorting**: Build `Disc` list with sort keys:
    - Primary: `artistSortKey` (lowercase, trimmed, strip leading "the"/"a"/"an" for sorting only)
-   - Secondary: `albumSortKey` (lowercase, trimmed)
+   - Secondary: `releaseDate` (ascending; albums without dates sort last)
    - Tie-break: `albumID`
 5. **UI**: Render sorted discs → tap plays full album via `ApplicationMusicPlayer.shared`
 
@@ -144,7 +147,8 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - `func searchAlbums(albumInfo: [(title: String, artist: String)]) async -> [AlbumResolution]` — searches library
 - `func searchCatalogAlbumForPlayback(title: String, artist: String) async -> AlbumResolution` — searches catalog for complete album
 - `func resolveCatalogAlbum(title: String, artist: String) async -> AlbumResolution` — alternative catalog search
-- Uses TaskGroup for concurrent searches (max ~6 concurrent requests)
+- `func enrichWithReleaseDates(_ resolutions: [AlbumResolution]) async -> [AlbumResolution]` — fetches missing release dates from catalog
+- Uses TaskGroup for concurrent searches (max 10 concurrent requests for rate limiting)
 - Fuzzy matching via `normalizeAlbumTitle()` and `titlesMatch()`:
   - Strips trailing parenthetical content: `(Deluxe Edition)`, `(20th Anniversary Remaster)`, etc.
   - Strips trailing bracketed content: `[Bonus Tracks]`, etc.
@@ -152,6 +156,7 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
   - Handles subtitles: matches if one title is prefix of another or base titles match before `:`
   - Spelling variations: `Rumours` ↔ `Rumors`
 - Cache resolved album metadata in-memory (keyed by title|artist)
+- **Release date enrichment**: For albums missing library release dates, searches catalog and parses copyright year (e.g., "℗ 1983 Warner Records" → 1983) as fallback
 
 ### ArtworkCache
 - Two-tier cache: in-memory NSCache (50 item limit) + disk cache (`Caches/ArtworkCache/*.jpg`)
@@ -172,9 +177,16 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 ### PlayerController
 - Uses `ApplicationMusicPlayer.shared` (app-controlled queue)
 - `func playAlbum(_ album: Album, startTrackID: MusicItemID?) async throws`
+- `func pause()` / `func resume() async` — pause/resume current playback
 - Always queues the resolved Album object (full tracks in canonical order), never playlist tracks
 - Tracks current playback state: `currentAlbum`, `currentTrack`, `isPlaying`, `playbackTime`
 - Uses timer-based polling (0.5s) to update playback time and match current track by title
+
+### PlayerViewModel
+- Wraps `PlayerController` for SwiftUI views
+- Tracks `currentDiscID: String?` to identify which disc is loaded
+- `isDiscLoaded(_ disc: Disc) -> Bool` — check if a disc is already loaded (for resume behavior)
+- Closing player pauses playback; tapping the same disc resumes from where it left off
 
 ## States & Error Handling
 
@@ -237,17 +249,19 @@ public final class DiscCache: Sendable {
 5. ✅ Diagnostics screen showing: auth status, playlist selection decision, resolution stats
 
 ### Post-First Light ✅ COMPLETE
-1. ✅ Sorting and stable ordering (artist → album → albumID with article stripping)
+1. ✅ Sorting and stable ordering (artist → release date → albumID with article stripping)
 2. ✅ Manual refresh + caching (in-memory artwork + metadata)
 3. ✅ Landscape-only wallet UI with circular CD discs (2 per spread)
-4. ✅ Player view with:
+4. ✅ 3D page flip animation with drag gesture (flip threshold at 45°, perspective -1/10)
+5. ✅ Player view with:
    - Album artwork display (left side)
    - Track listing with numbers and current track highlighting (right side)
    - CD player-style display (track number + elapsed time, green LCD styling)
    - Playback controls (previous/play-pause/next)
+   - Pause on close, resume when tapping same disc
 
 ### Deferred (Post-MVP)
-- Page flip animation, disc pull-out gestures
+- Disc pull-out gestures
 - Playlist switching UI for name collisions
 - Search/filtering, haptics, CD case textures
 
@@ -261,7 +275,7 @@ public final class DiscCache: Sendable {
 
 ### Unit Tests (CDWalletCore)
 - Sort key generation (including article stripping: "The Beatles" → "beatles, the")
-- Stable sorting by artist → album → albumID
+- Stable sorting by artist → release date → albumID
 - Album info deduplication (title/artist pairs with order preservation)
 - Edition deduplication (merges "Album (Deluxe Edition)" with "Album")
 - Album title fuzzy matching (spelling variations, edition suffix stripping)
@@ -279,7 +293,7 @@ public final class DiscCache: Sendable {
 
 1. **Album completion is mandatory**: Always play the full album, even if only one track is in the playlist
 2. **Disc identity**: Use album ID for display; editions are merged during deduplication (e.g., "Deluxe Edition" and standard are treated as one album, first occurrence kept)
-3. **Sorting**: Ignore leading articles ("The", "A", "An") in artist sort key only; display unchanged
+3. **Sorting**: Primary by artist (ignore leading articles), secondary by release date ascending, tie-break by album ID
 4. **MVP-first approach**: Validate MusicKit access + full-album playback before building nostalgic animations
 5. **Deterministic behavior**: Same playlist state → same disc order → same selection
 6. **Album limit**: Wallet displays max 20 albums; one-time dialog notifies user if playlist exceeds limit

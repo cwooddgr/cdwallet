@@ -13,12 +13,12 @@ struct AuthorizationView: View {
                     .font(.system(size: 80))
                     .foregroundColor(.accentColor)
 
-                Text("Welcome to CD Wallet")
+                Text("Welcome to CD Wally")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
 
-                Text("CD Wallet needs access to your Apple Music library to find your CDs playlist and play your albums.")
+                Text("CD Wally needs access to your Apple Music library to find and play your CDs.")
                     .multilineTextAlignment(.center)
                     .foregroundColor(.gray)
                     .padding(.horizontal)
