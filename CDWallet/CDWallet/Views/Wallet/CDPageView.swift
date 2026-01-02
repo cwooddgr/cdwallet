@@ -115,7 +115,7 @@ struct PageFlipState {
 
     /// Determine if flip should complete or cancel based on position
     func shouldCompleteFlip(velocity: CGFloat) -> Bool {
-        // Complete flip if past 90 degrees
-        currentAngle >= 90
+        // Complete flip if past 45 degrees
+        currentAngle >= 45
     }
 }

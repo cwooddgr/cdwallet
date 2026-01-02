@@ -207,9 +207,11 @@ public class WalletViewModel: ObservableObject {
                 let discsToPreload = Array(sortedDiscs.prefix(2))
                 await artworkCache.preload(discs: discsToPreload, size: CGSize(width: 600, height: 600))
 
-                // Only report higher totalCount if we actually hit the limit
-                // (not just because some albums failed verification)
-                let reportedTotal = totalAvailableCount > maxWalletAlbums ? totalAvailableCount : sortedDiscs.count
+                // Only report higher totalCount if we actually hit the 20-album limit
+                // (i.e., we have exactly maxWalletAlbums and there were more available)
+                let reportedTotal = (sortedDiscs.count == maxWalletAlbums && totalAvailableCount > maxWalletAlbums)
+                    ? totalAvailableCount
+                    : sortedDiscs.count
                 state = .ready(discs: sortedDiscs, totalCount: reportedTotal)
                 discCache.save(discs: sortedDiscs)
 

@@ -220,7 +220,7 @@ struct CDWalletBinderView: View {
             return
         }
 
-        if dragAngle >= 90 {
+        if dragAngle >= 45 {
             completeFlip()
         } else {
             cancelFlip()
