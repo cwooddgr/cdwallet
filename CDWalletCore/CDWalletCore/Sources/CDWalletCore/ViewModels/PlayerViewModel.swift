@@ -37,7 +37,7 @@ public class PlayerViewModel: ObservableObject {
         let resolution = await albumService.resolveCatalogAlbum(title: disc.albumTitle, artist: disc.artistName)
 
         switch resolution {
-        case .resolved(let album):
+        case .resolved(let album), .resolvedWithDate(let album, _):
             do {
                 try await playerController.playAlbum(album)
                 print("🎵 Playback started: \(album.tracks?.count ?? 0) tracks")

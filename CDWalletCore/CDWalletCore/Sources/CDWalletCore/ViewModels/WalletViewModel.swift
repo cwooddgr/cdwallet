@@ -126,10 +126,14 @@ public class WalletViewModel: ObservableObject {
 
             // 5. Build discs from resolved albums
             let discs = resolutions.compactMap { resolution -> Disc? in
-                if case .resolved(let album) = resolution {
+                switch resolution {
+                case .resolved(let album):
                     return Disc(album: album)
+                case .resolvedWithDate(let album, let releaseDate):
+                    return Disc(album: album, overrideReleaseDate: releaseDate)
+                case .unavailable, .error:
+                    return nil
                 }
-                return nil
             }
             print("📀 DEBUG: Built \(discs.count) discs from library")
 
@@ -170,7 +174,7 @@ public class WalletViewModel: ObservableObject {
                                 artist: disc.artistName
                             )
                             switch resolution {
-                            case .resolved:
+                            case .resolved, .resolvedWithDate:
                                 return disc
                             case .unavailable:
                                 self.unavailableCache.markUnavailable(title: disc.albumTitle, artist: disc.artistName)

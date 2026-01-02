@@ -42,7 +42,144 @@ public actor AlbumService {
             }
         }
 
-        return results
+        // Enrich albums missing releaseDate with catalog data
+        return await enrichWithReleaseDates(resolutions: results)
+    }
+
+    /// Fetch release dates from catalog for albums missing them
+    private func enrichWithReleaseDates(resolutions: [AlbumResolution]) async -> [AlbumResolution] {
+        // Find albums missing release dates
+        let needsEnrichment = resolutions.enumerated().filter { (_, resolution) in
+            if case .resolved(let album) = resolution {
+                return album.releaseDate == nil
+            }
+            return false
+        }
+
+        guard !needsEnrichment.isEmpty else { return resolutions }
+
+        print("📀 Enriching \(needsEnrichment.count) albums with missing release dates")
+
+        // Fetch release dates with controlled concurrency (10 at a time to avoid rate limiting)
+        var enrichedDates: [Int: Date] = [:]
+        for chunk in needsEnrichment.chunked(into: 10) {
+            let chunkResults = await withTaskGroup(of: (Int, Date?).self) { group in
+                for (index, resolution) in chunk {
+                    guard case .resolved(let album) = resolution else { continue }
+                    group.addTask {
+                        let date = await self.fetchReleaseDateFromCatalog(title: album.title, artist: album.artistName)
+                        return (index, date)
+                    }
+                }
+
+                var results: [Int: Date] = [:]
+                for await (index, date) in group {
+                    if let date = date {
+                        results[index] = date
+                    }
+                }
+                return results
+            }
+            enrichedDates.merge(chunkResults) { _, new in new }
+        }
+
+        // Build enriched results
+        var enrichedResults = resolutions
+        for (index, date) in enrichedDates {
+            if case .resolved(let album) = resolutions[index] {
+                enrichedResults[index] = .resolvedWithDate(album, releaseDate: date)
+            }
+        }
+
+        return enrichedResults
+    }
+
+    /// Search catalog to get release date for an album
+    private func fetchReleaseDateFromCatalog(title: String, artist: String) async -> Date? {
+        // Try search strategies in order - first success wins
+        let searchTerms = [
+            "\(artist) \(title)",
+            "\(title) \(artist)",
+            title  // Just the title as fallback
+        ]
+
+        for searchTerm in searchTerms {
+            if let date = await searchCatalogForReleaseDate(term: searchTerm, title: title, artist: artist) {
+                return date
+            }
+        }
+
+        print("📀 Could not find release date for '\(title)' by '\(artist)'")
+        return nil
+    }
+
+    private func searchCatalogForReleaseDate(term: String, title: String, artist: String) async -> Date? {
+        do {
+            var searchRequest = MusicCatalogSearchRequest(term: term, types: [Album.self])
+            searchRequest.limit = 15
+            let response = try await searchRequest.response()
+
+            let normalizedTitle = normalizeAlbumTitle(title)
+
+            for album in response.albums {
+                let titleMatch = normalizeAlbumTitle(album.title) == normalizedTitle || titlesMatch(album.title, title)
+                let artistMatch = artistsMatch(album.artistName, artist)
+
+                if titleMatch && artistMatch {
+                    // Try releaseDate first, then parse copyright year as fallback
+                    if let date = album.releaseDate {
+                        print("📀 Found release date for '\(title)': \(date)")
+                        return date
+                    } else if let copyrightDate = parseCopyrightYear(album.copyright) {
+                        print("📀 Found copyright date for '\(title)': \(copyrightDate) (from '\(album.copyright ?? "")')")
+                        return copyrightDate
+                    }
+                }
+            }
+
+            // Second pass: more lenient matching (check if base titles match)
+            for album in response.albums {
+                let baseTitle = normalizeAlbumTitle(title)
+                let catalogBase = normalizeAlbumTitle(album.title)
+                // Check if either contains the other (handles "Whammy" vs "Whammy!")
+                let titleMatch = baseTitle.contains(catalogBase) || catalogBase.contains(baseTitle)
+                let artistMatch = artistsMatch(album.artistName, artist)
+
+                if titleMatch && artistMatch {
+                    if let date = album.releaseDate {
+                        print("📀 Found release date for '\(title)' (lenient match to '\(album.title)'): \(date)")
+                        return date
+                    } else if let copyrightDate = parseCopyrightYear(album.copyright) {
+                        print("📀 Found copyright date for '\(title)' (lenient match): \(copyrightDate)")
+                        return copyrightDate
+                    }
+                }
+            }
+        } catch {
+            // Continue to next search term
+        }
+        return nil
+    }
+
+    /// Parse a year from copyright string like "℗ 1983 Warner Records" -> Date for Jan 1, 1983
+    private func parseCopyrightYear(_ copyright: String?) -> Date? {
+        guard let copyright = copyright else { return nil }
+
+        // Look for a 4-digit year (19xx or 20xx)
+        let pattern = #"\b(19\d{2}|20\d{2})\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: copyright, range: NSRange(copyright.startIndex..., in: copyright)),
+              let yearRange = Range(match.range(at: 1), in: copyright),
+              let year = Int(copyright[yearRange]) else {
+            return nil
+        }
+
+        // Create a date for January 1 of that year
+        var components = DateComponents()
+        components.year = year
+        components.month = 1
+        components.day = 1
+        return Calendar.current.date(from: components)
     }
 
     /// Search for FULL CATALOG album by title/artist for playback
@@ -314,6 +451,17 @@ public actor AlbumService {
 
         } catch {
             return .unavailable(albumID: id)
+        }
+    }
+}
+
+// MARK: - Array Extension
+
+private extension Array {
+    /// Split array into chunks of specified size
+    func chunked(into size: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
         }
     }
 }

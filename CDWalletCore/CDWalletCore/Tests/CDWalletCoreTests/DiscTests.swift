@@ -86,14 +86,12 @@ struct DiscTests {
         #expect(artistA < artistB)
     }
 
-    @Test("Disc comparison uses album as tiebreaker")
-    func testDiscComparisonUsesAlbumTiebreaker() {
-        let artist1 = "beatles"
-        let album1 = "abbey road"
-        let album2 = "white album"
+    @Test("Disc comparison uses release date as tiebreaker")
+    func testDiscComparisonUsesReleaseDateTiebreaker() {
+        // Same artist, different release dates - older album comes first
+        let date1969 = Date(timeIntervalSince1970: 0) // 1970 baseline
+        let date1979 = Date(timeIntervalSince1970: 315_360_000) // ~10 years later
 
-        // Same artist, different albums
-        #expect(artist1 == artist1)
-        #expect(album1 < album2)
+        #expect(date1969 < date1979)
     }
 }

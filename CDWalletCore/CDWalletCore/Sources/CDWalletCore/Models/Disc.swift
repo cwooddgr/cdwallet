@@ -19,18 +19,29 @@ public struct Disc: Identifiable, Hashable, @unchecked Sendable {
     public let isAvailable: Bool
 
     public init(album: Album) {
+        self.init(album: album, overrideReleaseDate: nil)
+    }
+
+    public init(album: Album, overrideReleaseDate: Date?) {
         self.id = album.id.rawValue
         self.albumID = album.id
         self.artistName = album.artistName
         self.albumTitle = album.title
         self.artwork = album.artwork
-        self.releaseDate = album.releaseDate
+        self.releaseDate = overrideReleaseDate ?? album.releaseDate
         self.trackCount = album.tracks?.count ?? 0
         self.isAvailable = true // MusicKit returns only available albums
 
         // Compute sort keys
         self.artistSortKey = Self.computeArtistSortKey(from: album.artistName)
         self.albumSortKey = Self.computeAlbumSortKey(from: album.title)
+
+        // Debug: log release date
+        if let date = self.releaseDate {
+            print("📀 Disc '\(album.title)' by '\(album.artistName)' releaseDate: \(date)")
+        } else {
+            print("📀 Disc '\(album.title)' by '\(album.artistName)' releaseDate: NIL")
+        }
     }
 
     /// Initialize from cached data (artwork loaded separately via ArtworkCache)
@@ -75,11 +86,22 @@ public struct Disc: Identifiable, Hashable, @unchecked Sendable {
 
 extension Disc: Comparable {
     public static func < (lhs: Disc, rhs: Disc) -> Bool {
+        // Primary: sort by artist
         if lhs.artistSortKey != rhs.artistSortKey {
             return lhs.artistSortKey < rhs.artistSortKey
         }
-        if lhs.albumSortKey != rhs.albumSortKey {
-            return lhs.albumSortKey < rhs.albumSortKey
+        // Secondary: sort by release date ascending (nil dates go to end)
+        switch (lhs.releaseDate, rhs.releaseDate) {
+        case let (lhsDate?, rhsDate?):
+            if lhsDate != rhsDate {
+                return lhsDate < rhsDate
+            }
+        case (nil, _?):
+            return false // lhs has no date, goes after rhs
+        case (_?, nil):
+            return true // lhs has date, goes before rhs
+        case (nil, nil):
+            break // both nil, fall through to tie-break
         }
         return lhs.id < rhs.id // tie-break by albumID
     }
