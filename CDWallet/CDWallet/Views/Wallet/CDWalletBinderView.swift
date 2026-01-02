@@ -1,4 +1,5 @@
 import SwiftUI
+import QuartzCore
 import CDWalletCore
 
 /// A physical page in the binder with a CD on each side
@@ -216,36 +217,66 @@ struct CDWalletBinderView: View {
 
         isAnimating = true
 
-        withAnimation(.easeOut(duration: 0.6)) {
-            dragAngle = 180
-        }
+        // Simulate user completing the drag by incrementally updating dragAngle
+        // This allows showingFront to naturally flip when angle crosses 90°
+        let startAngle = dragAngle
+        let targetAngle: Double = 180
+        let duration: Double = 0.6
+        let startTime = CACurrentMediaTime()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            // Update which pages are flipped
-            switch direction {
-            case .forward:
-                flippedPageCount += 1
-            case .backward:
-                flippedPageCount -= 1
-            case .none:
-                break
+        Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { timer in
+            let elapsed = CACurrentMediaTime() - startTime
+            let progress = min(elapsed / duration, 1.0)
+
+            // Ease-out curve: 1 - (1 - t)^2
+            let easedProgress = 1 - pow(1 - progress, 2)
+
+            dragAngle = startAngle + (targetAngle - startAngle) * easedProgress
+
+            if progress >= 1.0 {
+                timer.invalidate()
+                dragAngle = targetAngle
+
+                // Update which pages are flipped
+                switch direction {
+                case .forward:
+                    flippedPageCount += 1
+                case .backward:
+                    flippedPageCount -= 1
+                case .none:
+                    break
+                }
+
+                resetDragState()
+                isAnimating = false
             }
-
-            resetDragState()
-            isAnimating = false
         }
     }
 
     private func cancelFlip() {
         isAnimating = true
 
-        withAnimation(.easeOut(duration: 0.5)) {
-            dragAngle = 0
-        }
+        // Simulate user dragging back by incrementally updating dragAngle
+        let startAngle = dragAngle
+        let targetAngle: Double = 0
+        let duration: Double = 0.5
+        let startTime = CACurrentMediaTime()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            resetDragState()
-            isAnimating = false
+        Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { timer in
+            let elapsed = CACurrentMediaTime() - startTime
+            let progress = min(elapsed / duration, 1.0)
+
+            // Ease-out curve
+            let easedProgress = 1 - pow(1 - progress, 2)
+
+            dragAngle = startAngle + (targetAngle - startAngle) * easedProgress
+
+            if progress >= 1.0 {
+                timer.invalidate()
+                dragAngle = targetAngle
+                resetDragState()
+                isAnimating = false
+            }
         }
     }
 
