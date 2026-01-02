@@ -201,12 +201,21 @@ struct CDWalletBinderView: View {
         // Update angle based on drag
         guard let direction = dragDirection else { return }
 
+        // Calculate drag distance required for 180° based on start position
+        // Distance is measured from the binding (center of screen where pages meet)
+        // Dragging to the mirror point on the opposite page = 2x distance from binding
+        let startX = value.startLocation.x
+        let binding = pageWidth  // Center of screen, where pages meet
+        let distanceFromBinding = abs(startX - binding)
+        // Minimum of pageWidth/4 to handle edge cases near the binding
+        let dragFor180 = max(2 * distanceFromBinding, pageWidth * 0.25)
+
         let normalizedDrag: Double
         switch direction {
         case .forward:
-            normalizedDrag = -translation / pageWidth
+            normalizedDrag = -translation / dragFor180
         case .backward:
-            normalizedDrag = translation / pageWidth
+            normalizedDrag = translation / dragFor180
         case .none:
             return
         }
@@ -320,7 +329,7 @@ struct BinderPageView: View {
             axis: (x: 0, y: 1, z: 0),
             anchor: .leading,
             anchorZ: 0,
-            perspective: -1.0/25.0
+            perspective: -1.0/10.0
         )
         // Position: offset so leading edge is at center spine
         .offset(x: pageSize.width / 2)
