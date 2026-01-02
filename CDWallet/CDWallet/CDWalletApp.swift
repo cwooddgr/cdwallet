@@ -13,6 +13,7 @@ struct CDWalletApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var walletViewModel = WalletViewModel()
     @StateObject private var playerViewModel = PlayerViewModel()
+    @Environment(\.scenePhase) var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -21,6 +22,14 @@ struct CDWalletApp: App {
                 .environmentObject(playerViewModel)
                 .task {
                     await walletViewModel.initialize()
+                }
+                .onChange(of: scenePhase) { oldPhase, newPhase in
+                    // Refresh when returning from background (not on cold launch)
+                    if oldPhase == .background && newPhase == .active {
+                        Task {
+                            await walletViewModel.refresh()
+                        }
+                    }
                 }
         }
     }
