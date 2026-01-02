@@ -31,6 +31,7 @@ CD Wally is a universal iOS/iPadOS app that recreates the experience of browsing
 - ✅ Release date enrichment from Apple Music catalog (with copyright year fallback)
 - ✅ 3D page flip animation with drag gesture support
 - ✅ Player pause/resume (closing player pauses; tapping same CD resumes)
+- ✅ Auto-refresh on return from background with smart fingerprinting
 - ✅ Unit tests for sorting and playlist selection logic
 
 **Known Limitations**:
@@ -138,6 +139,7 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 ### PlaylistService
 - `func locateCDsPlaylist() async throws -> PlaylistSelection`
 - `func fetchPlaylistItems(playlistID:) async throws -> [Track]`
+- `func fetchPlaylistFingerprint(playlistID:) async throws -> Set<String>` — lightweight check for change detection
 - `func extractAlbumInfo(from: [Track]) -> [(title: String, artist: String)]` — primary method
 - `func extractAlbumIDs(from: [Track]) -> [String]` — legacy, unused
 - Implements name collision resolution
@@ -174,6 +176,12 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - Keyed by `artist|title` (lowercase)
 - Prevents showing unavailable albums in wallet
 
+### PlaylistFingerprintCache
+- Stores fingerprint of playlist (set of track IDs) for change detection
+- On return from background, compares current playlist to cached fingerprint
+- Only triggers full refresh if playlist actually changed
+- Avoids unnecessary API calls when user switches apps without modifying playlist
+
 ### PlayerController
 - Uses `ApplicationMusicPlayer.shared` (app-controlled queue)
 - `func playAlbum(_ album: Album, startTrackID: MusicItemID?) async throws`
@@ -187,6 +195,14 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - Tracks `currentDiscID: String?` to identify which disc is loaded
 - `isDiscLoaded(_ disc: Disc) -> Bool` — check if a disc is already loaded (for resume behavior)
 - Closing player pauses playback; tapping the same disc resumes from where it left off
+
+### WalletViewModel
+- Orchestrates wallet state and refresh logic
+- `initialize()` — initial load with cached data, then background refresh
+- `refresh()` — full refresh from Apple Music
+- `refreshIfNeeded()` — smart refresh using fingerprint comparison
+- `isRefreshing: Bool` — published state for showing "Updating..." indicator
+- On return from background: checks fingerprint first, only full refresh if changed
 
 ## States & Error Handling
 
