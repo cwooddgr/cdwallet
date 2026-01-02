@@ -43,7 +43,7 @@ struct CDWalletView: View {
                     HStack {
                         ProgressView()
                             .tint(.white)
-                        Text("Syncing...")
+                        Text("Updating...")
                             .font(.caption)
                             .foregroundColor(.white)
                     }
