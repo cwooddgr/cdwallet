@@ -18,42 +18,52 @@ struct CDWalletView: View {
 
     var body: some View {
         ZStack {
-            CDWalletBinderView(discs: discs) { disc in
-                Task {
-                    if playerViewModel.isDiscLoaded(disc) {
-                        // Same disc - resume if app-paused, keep paused if user-paused
-                        if !playerViewModel.wasUserPaused {
-                            await playerViewModel.resume()
-                        }
-                        showingPlayer = true
-                    } else {
-                        // Different disc - start fresh
-                        let success = await playerViewModel.playDisc(disc)
-                        if success {
-                            showingPlayer = true
-                        }
-                    }
-                }
-            }
+            // Full-screen background image
+            Image("cdwallet-background")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .ignoresSafeArea()
 
-            // Refresh indicator
-            if walletViewModel.isRefreshing {
-                VStack {
-                    Spacer()
-                    HStack {
-                        ProgressView()
-                            .tint(.white)
-                        Text("Updating...")
-                            .font(.caption)
-                            .foregroundColor(.white)
+            // Scaled wallet content (90%)
+            ZStack {
+                CDWalletBinderView(discs: discs) { disc in
+                    Task {
+                        if playerViewModel.isDiscLoaded(disc) {
+                            // Same disc - resume if app-paused, keep paused if user-paused
+                            if !playerViewModel.wasUserPaused {
+                                await playerViewModel.resume()
+                            }
+                            showingPlayer = true
+                        } else {
+                            // Different disc - start fresh
+                            let success = await playerViewModel.playDisc(disc)
+                            if success {
+                                showingPlayer = true
+                            }
+                        }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(.black.opacity(0.6))
-                    .cornerRadius(20)
-                    .padding(.bottom, 20)
+                }
+
+                // Refresh indicator
+                if walletViewModel.isRefreshing {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            ProgressView()
+                                .tint(.white)
+                            Text("Updating...")
+                                .font(.caption)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(.black.opacity(0.6))
+                        .cornerRadius(20)
+                        .padding(.bottom, 20)
+                    }
                 }
             }
+            .scaleEffect(0.9)
         }
         .fullScreenCover(isPresented: $showingPlayer) {
             LandscapePlayerView()

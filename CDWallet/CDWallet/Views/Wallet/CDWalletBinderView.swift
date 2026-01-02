@@ -65,14 +65,12 @@ struct CDWalletBinderView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let pageWidth = geometry.size.width / 2
-            let pageHeight = geometry.size.height * 0.9
-            let pageSize = CGSize(width: pageWidth, height: pageHeight)
+            // Square pages based on height
+            let pageDimension = geometry.size.height * 0.9
+            let pageSize = CGSize(width: pageDimension, height: pageDimension)
+            let bindingPosition = geometry.size.width / 2  // Center spine position
 
             ZStack {
-                // Dark wallet background
-                walletBackground
-
                 // Render all pages
                 ForEach(pages) { page in
                     pageView(for: page, size: pageSize)
@@ -84,10 +82,11 @@ struct CDWalletBinderView: View {
                     .frame(width: 4)
                     .zIndex(100)
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        handleDragChanged(value, pageWidth: pageWidth, screenWidth: geometry.size.width)
+                        handleDragChanged(value, bindingPosition: bindingPosition, screenWidth: geometry.size.width)
                     }
                     .onEnded { value in
                         handleDragEnded(value)
@@ -144,32 +143,9 @@ struct CDWalletBinderView: View {
         .zIndex(zIndex)
     }
 
-    // MARK: - Background
-
-    private var walletBackground: some View {
-        Canvas { context, size in
-            // Dark fabric texture
-            context.fill(
-                Path(CGRect(origin: .zero, size: size)),
-                with: .color(Color(white: 0.08))
-            )
-
-            // Subtle noise texture
-            let noiseSpacing: CGFloat = 3
-            for x in stride(from: 0, to: size.width, by: noiseSpacing) {
-                for y in stride(from: 0, to: size.height, by: noiseSpacing) {
-                    let opacity = Double.random(in: 0.02...0.06)
-                    let rect = CGRect(x: x, y: y, width: 1, height: 1)
-                    context.fill(Path(rect), with: .color(.white.opacity(opacity)))
-                }
-            }
-        }
-        .ignoresSafeArea()
-    }
-
     // MARK: - Gesture Handling
 
-    private func handleDragChanged(_ value: DragGesture.Value, pageWidth: CGFloat, screenWidth: CGFloat) {
+    private func handleDragChanged(_ value: DragGesture.Value, bindingPosition: CGFloat, screenWidth: CGFloat) {
         guard !isAnimating else { return }
 
         // Record which side the drag started on (first touch)
@@ -205,10 +181,9 @@ struct CDWalletBinderView: View {
         // Distance is measured from the binding (center of screen where pages meet)
         // Dragging to the mirror point on the opposite page = 2x distance from binding
         let startX = value.startLocation.x
-        let binding = pageWidth  // Center of screen, where pages meet
-        let distanceFromBinding = abs(startX - binding)
-        // Minimum of pageWidth/4 to handle edge cases near the binding
-        let dragFor180 = max(2 * distanceFromBinding, pageWidth * 0.25)
+        let distanceFromBinding = abs(startX - bindingPosition)
+        // Minimum distance to handle edge cases near the binding
+        let dragFor180 = max(2 * distanceFromBinding, bindingPosition * 0.25)
 
         let normalizedDrag: Double
         switch direction {
@@ -295,7 +270,7 @@ struct BinderPageView: View {
 
     // CD size relative to page
     private var discSize: CGFloat {
-        min(pageSize.width, pageSize.height) * 0.85
+        min(pageSize.width, pageSize.height) * 0.925
     }
 
     var body: some View {
@@ -322,10 +297,11 @@ struct BinderPageView: View {
             }
         }
         .frame(width: pageSize.width, height: pageSize.height)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         // 3D rotation - always rotate around leading edge
+        // Clamp angle away from 90° to avoid singular projection matrix
         .rotation3DEffect(
-            .degrees(rotationAngle),
+            .degrees(abs(rotationAngle - 90) < 0.1 ? 89.9 : rotationAngle),
             axis: (x: 0, y: 1, z: 0),
             anchor: .leading,
             anchorZ: 0,
