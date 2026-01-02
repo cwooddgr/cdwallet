@@ -14,6 +14,7 @@ struct CDWalletApp: App {
     @StateObject private var walletViewModel = WalletViewModel()
     @StateObject private var playerViewModel = PlayerViewModel()
     @Environment(\.scenePhase) var scenePhase
+    @State private var wasInBackground = false
 
     var body: some Scene {
         WindowGroup {
@@ -24,8 +25,13 @@ struct CDWalletApp: App {
                     await walletViewModel.initialize()
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
-                    // Check for playlist changes when returning from background
-                    if oldPhase == .background && newPhase == .active {
+                    // Track when we enter background
+                    if newPhase == .background {
+                        wasInBackground = true
+                    }
+                    // Check for playlist changes when becoming active after being in background
+                    if newPhase == .active && wasInBackground {
+                        wasInBackground = false
                         Task {
                             await walletViewModel.refreshIfNeeded()
                         }

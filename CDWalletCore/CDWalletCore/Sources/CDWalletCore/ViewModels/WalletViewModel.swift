@@ -7,6 +7,7 @@ import Combine
 public class WalletViewModel: ObservableObject {
     @Published public private(set) var state: WalletState = .loading
     @Published public private(set) var diagnostics: DiagnosticsSnapshot?
+    @Published public private(set) var isRefreshing: Bool = false
 
     private let authService = AuthorizationService()
     private let playlistService = PlaylistService()
@@ -106,6 +107,9 @@ public class WalletViewModel: ObservableObject {
 
     /// Refresh wallet from "CDs" playlist
     public func refresh() async {
+        isRefreshing = true
+        defer { isRefreshing = false }
+
         // Only show loading if we don't have cached data
         if case .ready = state {
             // Already showing cached data, refresh silently

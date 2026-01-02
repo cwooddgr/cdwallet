@@ -17,20 +17,41 @@ struct CDWalletView: View {
     }
 
     var body: some View {
-        CDWalletBinderView(discs: discs) { disc in
-            Task {
-                if playerViewModel.isDiscLoaded(disc) {
-                    // Same disc - resume if app-paused, keep paused if user-paused
-                    if !playerViewModel.wasUserPaused {
-                        await playerViewModel.resume()
-                    }
-                    showingPlayer = true
-                } else {
-                    // Different disc - start fresh
-                    let success = await playerViewModel.playDisc(disc)
-                    if success {
+        ZStack {
+            CDWalletBinderView(discs: discs) { disc in
+                Task {
+                    if playerViewModel.isDiscLoaded(disc) {
+                        // Same disc - resume if app-paused, keep paused if user-paused
+                        if !playerViewModel.wasUserPaused {
+                            await playerViewModel.resume()
+                        }
                         showingPlayer = true
+                    } else {
+                        // Different disc - start fresh
+                        let success = await playerViewModel.playDisc(disc)
+                        if success {
+                            showingPlayer = true
+                        }
                     }
+                }
+            }
+
+            // Refresh indicator
+            if walletViewModel.isRefreshing {
+                VStack {
+                    Spacer()
+                    HStack {
+                        ProgressView()
+                            .tint(.white)
+                        Text("Syncing...")
+                            .font(.caption)
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(.black.opacity(0.6))
+                    .cornerRadius(20)
+                    .padding(.bottom, 20)
                 }
             }
         }
