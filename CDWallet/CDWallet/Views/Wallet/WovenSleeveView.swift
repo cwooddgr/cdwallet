@@ -1,19 +1,19 @@
 import SwiftUI
 
-/// Simulates the woven white plastic texture of a 90s CD wallet sleeve
+/// Simulates the woven dark gray plastic texture of a 90s CD wallet sleeve
 struct WovenSleeveView: View {
     var body: some View {
         Canvas { context, size in
-            // Opaque base
+            // Dark gray base
             context.fill(
                 Path(CGRect(origin: .zero, size: size)),
-                with: .color(Color(white: 0.75))
+                with: .color(Color(white: 0.20))
             )
 
             // Cross-hatch pattern for woven texture
             let spacing: CGFloat = 4
             let lineWidth: CGFloat = 0.5
-            let lineColor = Color(white: 0.82)
+            let lineColor = Color(white: 0.25)
 
             // Diagonal lines (top-left to bottom-right)
             var y: CGFloat = -size.height
@@ -36,7 +36,7 @@ struct WovenSleeveView: View {
             }
 
             // Horizontal lines for additional weave texture
-            let horizLineColor = Color(white: 0.70)
+            let horizLineColor = Color(white: 0.15)
             var yHoriz: CGFloat = 0
             while yHoriz < size.height {
                 var path = Path()
