@@ -33,6 +33,12 @@ CD Wally is a universal iOS/iPadOS app that recreates the experience of browsing
 - ✅ Player pause/resume (closing player pauses; tapping same CD resumes)
 - ✅ Auto-refresh on return from background with smart fingerprinting
 - ✅ Unit tests for sorting and playlist selection logic
+- ✅ Skeuomorphic UI redesign:
+  - Background image with wallet scaled to 90%
+  - Realistic CD disc rendering with concentric regions (center hole, artwork, clamp ring, outer rim)
+  - Woven sleeve texture simulating 90s CD wallet plastic
+  - Artwork preloading for smoother disc display
+  - Drag dead zone (15% from binding) to prevent accidental page flips
 
 **Known Limitations**:
 - iOS 18.0+ required (uses iOS 18 MusicKit APIs)
@@ -60,11 +66,11 @@ CD Wally is a universal iOS/iPadOS app that recreates the experience of browsing
 - Services: `AuthorizationService`, `PlaylistService`, `AlbumService`, `ArtworkCache`, `PlayerController`
 
 **UI Views** (CDWallet app target):
-- Wallet: `CDWalletView`, `WalletSpreadView2`, `CDDiscView`
+- Wallet: `CDWalletView`, `CDWalletBinderView`, `BinderPageView`, `CDDiscSkeuomorphicView`, `WovenSleeveView`
 - Player: `LandscapePlayerView`
 - Support: `AppDelegate` (forces landscape orientation)
 
-**UI Layout Strategy**: Landscape-only orientation. Uses SwiftUI with circular CD disc visuals and paged spread navigation.
+**UI Layout Strategy**: Landscape-only orientation. Uses SwiftUI with skeuomorphic CD disc visuals (realistic concentric regions with center hole, clamp ring, outer rim) and 3D page flip navigation.
 
 ## Core Architecture & Data Flow
 
@@ -267,7 +273,7 @@ public final class DiscCache: Sendable {
 ### Post-First Light ✅ COMPLETE
 1. ✅ Sorting and stable ordering (artist → release date → albumID with article stripping)
 2. ✅ Manual refresh + caching (in-memory artwork + metadata)
-3. ✅ Landscape-only wallet UI with circular CD discs (2 per spread)
+3. ✅ Landscape-only wallet UI with CD discs (2 per spread)
 4. ✅ 3D page flip animation with drag gesture (flip threshold at 45°, perspective -1/10)
 5. ✅ Player view with:
    - Album artwork display (left side)
@@ -275,11 +281,23 @@ public final class DiscCache: Sendable {
    - CD player-style display (track number + elapsed time, green LCD styling)
    - Playback controls (previous/play-pause/next)
    - Pause on close, resume when tapping same disc
+6. ✅ Auto-refresh on return from background with smart fingerprinting
+
+### Skeuomorphic UI ✅ COMPLETE
+1. ✅ Background image with scaled wallet (90% scale for visual breathing room)
+2. ✅ Realistic CD disc rendering (`CDDiscSkeuomorphicView`):
+   - Center hole (0-0.125R): Transparent, shows sleeve through
+   - Album artwork (0.125R-0.98R): Album art with clamp ring masked out
+   - Clamp ring (0.265R-0.275R): Clear plastic with gradient highlight
+   - Outer rim (0.98R-1.0R): Clear plastic edge
+3. ✅ Woven sleeve texture (`WovenSleeveView`): Cross-hatch pattern simulating 90s CD wallet plastic
+4. ✅ Artwork preloading: Async loading with placeholder during fetch
+5. ✅ Drag dead zone: 15% of page width from binding prevents accidental flips
 
 ### Deferred (Post-MVP)
 - Disc pull-out gestures
 - Playlist switching UI for name collisions
-- Search/filtering, haptics, CD case textures
+- Search/filtering, haptics
 
 ## Required Xcode Configuration
 

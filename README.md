@@ -8,13 +8,15 @@ CD Wally lets you curate a collection of albums in a "CDs" playlist, then browse
 
 ## Features
 
-- **Wallet-style browsing**: Flip through pages of circular CD discs with realistic 3D page-turn animation
+- **Skeuomorphic CD discs**: Realistic rendering with center hole, album artwork, clear plastic clamp ring, and outer rim—just like real CDs
+- **Woven sleeve texture**: Dark cross-hatch pattern simulating 90s CD wallet plastic sleeves
+- **3D page flip animation**: Flip through pages with realistic perspective and physics
 - **Landscape-only UI**: Optimized for landscape orientation like a real CD wallet
 - **Full album playback**: Tapping a disc plays the complete catalog version with all tracks
 - **Resume playback**: Close the player to pause; tap the same disc to resume where you left off
 - **CD player display**: Shows current track number and elapsed time with retro LCD styling
 - **Track listing**: View all tracks with the current track highlighted
-- **Smart artwork loading**: Falls back to Apple Music catalog when local artwork isn't cached
+- **Smart artwork loading**: Preloads artwork with catalog fallback when local artwork isn't cached
 - **Auto-sync**: Automatically detects playlist changes when returning from Apple Music
 - **Diagnostics view**: Debug info for playlist resolution and album matching
 
