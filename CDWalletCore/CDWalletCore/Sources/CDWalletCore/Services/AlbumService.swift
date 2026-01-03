@@ -226,18 +226,58 @@ public actor AlbumService {
             return .resolved(cached)
         }
 
+        // Extract primary artist (before &, and, feat., etc.) for fallback search
+        let primaryArtist = extractPrimaryArtist(artist)
+
+        // Try multiple search strategies
+        let searchTerms: [String]
+        if primaryArtist != artist.lowercased() {
+            searchTerms = [
+                "\(artist) \(title)",           // Full artist + title
+                "\(primaryArtist) \(title)",    // Primary artist + title
+                title                            // Just title as last resort
+            ]
+        } else {
+            searchTerms = [
+                "\(artist) \(title)",
+                title
+            ]
+        }
+
+        for searchTerm in searchTerms {
+            print("🔍 Trying search: '\(searchTerm)'")
+            if let result = await searchCatalogWithTerm(searchTerm, title: title, artist: artist, cacheKey: cacheKey) {
+                return result
+            }
+        }
+
+        print("🔍 ✗ No match after all search strategies")
+        return .unavailable(albumID: cacheKey)
+    }
+
+    /// Extract primary artist name before collaboration markers
+    private func extractPrimaryArtist(_ artist: String) -> String {
+        var primary = artist.lowercased()
+        let separators = [" & ", " and ", " feat. ", " feat ", " featuring ", " with ", ", "]
+        for sep in separators {
+            if let range = primary.range(of: sep) {
+                primary = String(primary[..<range.lowerBound])
+            }
+        }
+        return primary.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Search catalog with a specific term and match against title/artist
+    private func searchCatalogWithTerm(_ term: String, title: String, artist: String, cacheKey: String) async -> AlbumResolution? {
         do {
-            var searchRequest = MusicCatalogSearchRequest(term: "\(artist) \(title)", types: [Album.self])
-            searchRequest.limit = 10
+            var searchRequest = MusicCatalogSearchRequest(term: term, types: [Album.self])
+            searchRequest.limit = 15
             let searchResponse = try await searchRequest.response()
             print("🔍 Catalog returned \(searchResponse.albums.count) results")
 
-            let artistLower = artist.lowercased()
-
             for album in searchResponse.albums {
-                let albumArtistLower = album.artistName.lowercased()
                 let titleMatch = titlesMatch(album.title, title)
-                let artistMatch = albumArtistLower == artistLower
+                let artistMatch = artistsMatch(album.artistName, artist)
                 print("🔍   '\(album.title)' by '\(album.artistName)' → title:\(titleMatch) artist:\(artistMatch)")
 
                 if titleMatch && artistMatch {
@@ -247,11 +287,10 @@ public actor AlbumService {
                     return .resolved(fullAlbum)
                 }
             }
-            print("🔍 ✗ No match in results")
-            return .unavailable(albumID: cacheKey)
+            return nil
         } catch {
             print("🔍 ✗ Search error: \(error)")
-            return .error(albumID: cacheKey)
+            return nil
         }
     }
 
