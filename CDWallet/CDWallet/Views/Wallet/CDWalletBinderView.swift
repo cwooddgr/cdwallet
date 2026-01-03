@@ -338,7 +338,7 @@ struct BinderPageView: View {
             }
         }
         .frame(width: pageSize.width, height: pageSize.height)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .clipShape(RoundedRectangle(cornerRadius: 60))
         // 3D rotation - always rotate around leading edge
         // Clamp angle away from 90° to avoid singular projection matrix
         .rotation3DEffect(
