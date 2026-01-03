@@ -311,7 +311,17 @@ public actor AlbumService {
             cache[album.id.rawValue] = album
             return .resolved(album)
         } else {
-            return .unavailable(albumID: "\(artist)-\(title)")
+            // Library search failed - try catalog as fallback
+            // This handles albums that exist in Apple Music but not in user's library
+            let catalogResult = await resolveCatalogAlbum(title: title, artist: artist)
+            switch catalogResult {
+            case .resolved(let album):
+                return .resolved(album)
+            case .resolvedWithDate(let album, let date):
+                return .resolvedWithDate(album, releaseDate: date)
+            case .unavailable, .error:
+                return .unavailable(albumID: "\(artist)-\(title)")
+            }
         }
     }
 
