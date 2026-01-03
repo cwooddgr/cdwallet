@@ -87,7 +87,7 @@ struct CDWalletBinderView: View {
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        handleDragChanged(value, bindingPosition: bindingPosition, screenWidth: geometry.size.width)
+                        handleDragChanged(value, bindingPosition: bindingPosition, screenWidth: geometry.size.width, pageWidth: pageDimension)
                     }
                     .onEnded { value in
                         handleDragEnded(value)
@@ -146,12 +146,23 @@ struct CDWalletBinderView: View {
 
     // MARK: - Gesture Handling
 
-    private func handleDragChanged(_ value: DragGesture.Value, bindingPosition: CGFloat, screenWidth: CGFloat) {
+    private func handleDragChanged(_ value: DragGesture.Value, bindingPosition: CGFloat, screenWidth: CGFloat, pageWidth: CGFloat) {
         guard !isAnimating else { return }
+
+        let startX = value.startLocation.x
+
+        // Dead zone: disallow drags starting within 15% of page width from the binding
+        // For left page: right 15% is too close to binding
+        // For right page: left 15% is too close to binding
+        let deadZoneWidth = pageWidth * 0.15
+        let inLeftPageDeadZone = startX > (bindingPosition - deadZoneWidth) && startX < bindingPosition
+        let inRightPageDeadZone = startX >= bindingPosition && startX < (bindingPosition + deadZoneWidth)
+        if inLeftPageDeadZone || inRightPageDeadZone {
+            return
+        }
 
         // Record which side the drag started on (first touch)
         if dragStartedOnLeft == nil {
-            let startX = value.startLocation.x
             dragStartedOnLeft = startX < screenWidth / 2
         }
 
@@ -181,7 +192,6 @@ struct CDWalletBinderView: View {
         // Calculate drag distance required for 180° based on start position
         // Distance is measured from the binding (center of screen where pages meet)
         // Dragging to the mirror point on the opposite page = 2x distance from binding
-        let startX = value.startLocation.x
         let distanceFromBinding = abs(startX - bindingPosition)
         // Minimum distance to handle edge cases near the binding
         let dragFor180 = max(2 * distanceFromBinding, bindingPosition * 0.25)

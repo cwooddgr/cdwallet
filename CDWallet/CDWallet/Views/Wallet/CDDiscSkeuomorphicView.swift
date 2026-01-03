@@ -15,7 +15,7 @@ struct CDDiscSkeuomorphicView: View {
 
     // CD region constants (as fraction of radius)
     private let centerHoleRadius: CGFloat = 0.125
-    private let artworkOuterRadius: CGFloat = 0.9667
+    private let artworkOuterRadius: CGFloat = 0.98
     private let clampInnerRadius: CGFloat = 0.2650
     private let clampOuterRadius: CGFloat = 0.2750
 

@@ -11,8 +11,8 @@ struct WovenSleeveView: View {
             )
 
             // Cross-hatch pattern for woven texture
-            let spacing: CGFloat = 4
-            let lineWidth: CGFloat = 0.5
+            let spacing: CGFloat = 8
+            let lineWidth: CGFloat = 1.0
             let lineColor = Color(white: 0.25)
 
             // Diagonal lines (top-left to bottom-right)
@@ -42,7 +42,7 @@ struct WovenSleeveView: View {
                 var path = Path()
                 path.move(to: CGPoint(x: 0, y: yHoriz))
                 path.addLine(to: CGPoint(x: size.width, y: yHoriz))
-                context.stroke(path, with: .color(horizLineColor), lineWidth: 0.3)
+                context.stroke(path, with: .color(horizLineColor), lineWidth: 0.6)
                 yHoriz += spacing * 2
             }
         }

@@ -49,9 +49,8 @@ public class WalletViewModel: ObservableObject {
                     !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
                 }
                 if !availableDiscs.isEmpty {
-                    // Preload artwork for first 2 discs before showing
-                    let discsToPreload = Array(availableDiscs.prefix(2))
-                    await artworkCache.preload(discs: discsToPreload, size: CGSize(width: 600, height: 600))
+                    // Preload artwork for all discs before showing
+                    await artworkCache.preload(discs: availableDiscs, size: CGSize(width: 600, height: 600))
                     state = .ready(discs: availableDiscs, totalCount: availableDiscs.count)
                 }
             }
@@ -240,9 +239,8 @@ public class WalletViewModel: ObservableObject {
                 state = .empty(reason: .noAlbumsResolved)
                 discCache.clear()
             } else {
-                // Preload artwork for first 2 discs before showing wallet
-                let discsToPreload = Array(sortedDiscs.prefix(2))
-                await artworkCache.preload(discs: discsToPreload, size: CGSize(width: 600, height: 600))
+                // Preload artwork for all discs before showing wallet
+                await artworkCache.preload(discs: sortedDiscs, size: CGSize(width: 600, height: 600))
 
                 // Only report higher totalCount if we actually hit the 20-album limit
                 // (i.e., we have exactly maxWalletAlbums and there were more available)
