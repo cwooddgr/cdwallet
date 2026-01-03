@@ -38,28 +38,29 @@ public class WalletViewModel: ObservableObject {
 
     /// Initial load: check authorization and load wallet
     public func initialize() async {
-        let isAuthorized = await authService.ensureAuthorized()
-
-        if isAuthorized {
-            state = .loading
-
-            // Load from cache first for instant display (filtering out unavailable)
-            if let cachedDiscs = discCache.load(), !cachedDiscs.isEmpty {
-                let availableDiscs = cachedDiscs.filter { disc in
-                    !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
-                }
-                if !availableDiscs.isEmpty {
-                    // Preload artwork for all discs before showing
-                    await artworkCache.preload(discs: availableDiscs, size: CGSize(width: 600, height: 600))
-                    state = .ready(discs: availableDiscs, totalCount: availableDiscs.count)
-                }
-            }
-            // Then refresh from Apple Music (will update with latest data)
-            await refresh()
-        } else {
+        // Check current status without triggering system dialog
+        // User must tap button in AuthorizationView to trigger the dialog
+        guard MusicAuthorization.currentStatus == .authorized else {
             state = .needsAuthorization
-            updateDiagnostics()
+            // Don't call updateDiagnostics() here - avoid any MusicKit access before user grants permission
+            return
         }
+
+        state = .loading
+
+        // Load from cache first for instant display (filtering out unavailable)
+        if let cachedDiscs = discCache.load(), !cachedDiscs.isEmpty {
+            let availableDiscs = cachedDiscs.filter { disc in
+                !unavailableCache.isUnavailable(title: disc.albumTitle, artist: disc.artistName)
+            }
+            if !availableDiscs.isEmpty {
+                // Preload artwork for all discs before showing
+                await artworkCache.preload(discs: availableDiscs, size: CGSize(width: 600, height: 600))
+                state = .ready(discs: availableDiscs, totalCount: availableDiscs.count)
+            }
+        }
+        // Then refresh from Apple Music (will update with latest data)
+        await refresh()
     }
 
     /// Request authorization

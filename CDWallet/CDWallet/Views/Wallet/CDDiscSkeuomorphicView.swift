@@ -67,9 +67,11 @@ struct CDDiscSkeuomorphicView: View {
                 .compositingGroup()
         }
         .task(id: disc.id) {
+            // Use fixed 600x600 to match preload cache key
+            // (high enough res for any device, and ensures cache hit)
             let fetchedImage = await ArtworkCache.shared.artwork(
                 for: disc,
-                size: CGSize(width: size * 2, height: size * 2)
+                size: CGSize(width: 600, height: 600)
             )
             await MainActor.run {
                 self.image = fetchedImage

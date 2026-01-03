@@ -7,7 +7,13 @@ import Combine
 public class PlayerController: ObservableObject {
     public static let shared = PlayerController()
 
-    private nonisolated(unsafe) let player = ApplicationMusicPlayer.shared
+    // Access player directly - avoid storing to prevent early initialization
+    private nonisolated(unsafe) var player: ApplicationMusicPlayer {
+        ApplicationMusicPlayer.shared
+    }
+
+    // Track if we've set up observers (only do this once, after first play)
+    private var isObserving = false
 
     @Published public private(set) var currentAlbum: Album?
     @Published public private(set) var isPlaying: Bool = false
@@ -18,6 +24,13 @@ public class PlayerController: ObservableObject {
     private var timeObserver: Timer?
 
     private init() {
+        // Don't access player here - wait until first use after authorization
+    }
+
+    /// Start observing player state (called on first play)
+    private func startObservingIfNeeded() {
+        guard !isObserving else { return }
+        isObserving = true
         observePlayerState()
         startTimeObserver()
     }
@@ -25,14 +38,15 @@ public class PlayerController: ObservableObject {
     private func startTimeObserver() {
         timeObserver = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                self?.playbackTime = self?.player.playbackTime ?? 0
-                self?.updateCurrentTrackFromQueue()
+                guard let self = self, self.isObserving else { return }
+                self.playbackTime = self.player.playbackTime
+                self.updateCurrentTrackFromQueue()
             }
         }
     }
 
     private func updateCurrentTrackFromQueue() {
-        guard let entry = player.queue.currentEntry else { return }
+        guard isObserving, let entry = player.queue.currentEntry else { return }
 
         // Match current playing item to a track in the album by title
         let title = entry.title
@@ -44,6 +58,8 @@ public class PlayerController: ObservableObject {
 
     /// Play a full album (canonical track order) - CRITICAL: Album completion rule
     public func playAlbum(_ album: Album, startTrackID: MusicItemID? = nil) async throws {
+        startObservingIfNeeded()
+
         // ⚠️ CRITICAL: Set queue to the resolved album (full album semantics)
         // NEVER queue playlist tracks directly
 
@@ -59,6 +75,7 @@ public class PlayerController: ObservableObject {
     }
 
     public func togglePlayPause() {
+        startObservingIfNeeded()
         if player.state.playbackStatus == .playing {
             player.pause()
         } else {
@@ -69,6 +86,7 @@ public class PlayerController: ObservableObject {
     }
 
     public func stop() {
+        guard isObserving else { return }
         player.stop()
         currentAlbum = nil
         currentTrack = nil
@@ -76,26 +94,31 @@ public class PlayerController: ObservableObject {
     }
 
     public func pause() {
+        guard isObserving else { return }
         player.pause()
     }
 
     public func resume() async {
+        startObservingIfNeeded()
         try? await player.play()
     }
 
     public func skipToNextTrack() {
+        guard isObserving else { return }
         Task {
             try? await player.skipToNextEntry()
         }
     }
 
     public func skipToPreviousTrack() {
+        guard isObserving else { return }
         Task {
             try? await player.skipToPreviousEntry()
         }
     }
 
     public func seek(to timeInSeconds: TimeInterval) {
+        guard isObserving else { return }
         player.playbackTime = timeInSeconds
     }
 
