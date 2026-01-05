@@ -57,13 +57,15 @@ The project is organized as:
 
 - Uses MusicKit iOS 18 APIs with explicit relationship loading (`.with([.tracks, .entries])`)
 - Library album IDs differ from catalog IDs—album matching uses title/artist search
+- **Library-to-catalog fallback**: Albums not in your library but available on Apple Music still appear in your wallet
 - **Edition deduplication**: Albums with edition suffixes are merged (e.g., "21st Century Breakdown" and "21st Century Breakdown (Deluxe Edition)" become one entry)
 - **Album limit**: Wallet displays up to 20 albums; a one-time dialog notifies you if your playlist has more
-- Fuzzy matching handles many title variations:
+- Fuzzy matching handles many title and artist variations:
   - Edition suffixes: `(Deluxe Edition)`, `(20th Anniversary Remaster)`, `[Bonus Tracks]`
   - Punctuation differences: `But Seriously Folks` vs `But Seriously, Folks...`
   - Subtitles: `The Best Of Elvis Costello` vs `The Best of Elvis Costello: The First 10 Years`
   - Spelling variations: `Rumours` vs `Rumors`
+  - Compound artists: `Dr. Dre & Snoop Dogg` → tries "Dr. Dre" as primary artist if full search fails
 
 ## License
 

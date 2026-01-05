@@ -15,9 +15,11 @@ CD Wally is a universal iOS/iPadOS app that recreates the experience of browsing
 **Current State**: Fully implemented through Post-First Light milestone. The app is functional and ready to use with iOS 18+, Apple Music subscription, and a "CDs" playlist.
 
 **Implementation Complete**:
-- ✅ MusicKit authorization and library access
+- ✅ MusicKit authorization and library access (deferred player initialization for proper auth flow)
 - ✅ Playlist discovery with deterministic collision handling
 - ✅ Album resolution via title/artist search with fuzzy matching
+- ✅ Library-to-catalog fallback (albums not in user's library still appear via catalog search)
+- ✅ Compound artist search with fallback strategies ("Dr. Dre & Snoop Dogg" → tries primary artist)
 - ✅ Edition deduplication (merges "Deluxe Edition", "Remastered", etc. with base album)
 - ✅ Album limit (20 max) with one-time notification dialog
 - ✅ Landscape-only wallet UI with circular CD discs (2 per page spread)
@@ -152,23 +154,29 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 - **Edition deduplication**: Normalizes album titles when deduplicating to merge editions (e.g., "21st Century Breakdown" and "21st Century Breakdown (Deluxe Edition)" are treated as the same album). First occurrence in playlist order is kept.
 
 ### AlbumService
-- `func searchAlbums(albumInfo: [(title: String, artist: String)]) async -> [AlbumResolution]` — searches library
+- `func searchAlbums(albumInfo: [(title: String, artist: String)]) async -> [AlbumResolution]` — searches library, falls back to catalog if not found
 - `func searchCatalogAlbumForPlayback(title: String, artist: String) async -> AlbumResolution` — searches catalog for complete album
 - `func resolveCatalogAlbum(title: String, artist: String) async -> AlbumResolution` — alternative catalog search
 - `func enrichWithReleaseDates(_ resolutions: [AlbumResolution]) async -> [AlbumResolution]` — fetches missing release dates from catalog
 - Uses TaskGroup for concurrent searches (max 10 concurrent requests for rate limiting)
-- Fuzzy matching via `normalizeAlbumTitle()` and `titlesMatch()`:
+- **Library-to-catalog fallback**: When library search fails to find an album, automatically tries catalog search. This allows albums that exist in Apple Music but not in the user's library to appear in the wallet.
+- **Compound artist fallback**: When catalog search fails, tries progressively simpler search terms:
+  1. Full artist + title (e.g., "Dr. Dre & Snoop Dogg Still D.R.E.")
+  2. Primary artist + title (e.g., "Dr. Dre Still D.R.E." — strips " & ", " and ", " feat. ", " featuring ", " with ", ", ")
+  3. Just title as last resort
+- Fuzzy matching via `normalizeAlbumTitle()`, `titlesMatch()`, and `artistsMatch()`:
   - Strips trailing parenthetical content: `(Deluxe Edition)`, `(20th Anniversary Remaster)`, etc.
   - Strips trailing bracketed content: `[Bonus Tracks]`, etc.
   - Removes punctuation variations: commas, ellipses, quotes
   - Handles subtitles: matches if one title is prefix of another or base titles match before `:`
   - Spelling variations: `Rumours` ↔ `Rumors`
+  - Artist matching: flexible match instead of exact (handles variations in artist naming)
 - Cache resolved album metadata in-memory (keyed by title|artist)
 - **Release date enrichment**: For albums missing library release dates, searches catalog and parses copyright year (e.g., "℗ 1983 Warner Records" → 1983) as fallback
 
 ### ArtworkCache
 - Two-tier cache: in-memory NSCache (50 item limit) + disk cache (`Caches/ArtworkCache/*.jpg`)
-- Keyed by `albumID+size`
+- Keyed by `albumID+size` (uses fixed 600x600 size for consistency between preload and display)
 - Falls back to catalog search when library artwork unavailable
 - Cleanup removes cached artwork for albums no longer in wallet
 
@@ -190,6 +198,7 @@ The app uses a two-phase resolution strategy to handle iOS 18 MusicKit library/c
 
 ### PlayerController
 - Uses `ApplicationMusicPlayer.shared` (app-controlled queue)
+- **Deferred initialization**: Player and observers are initialized lazily on first play to avoid accessing `ApplicationMusicPlayer.shared` before MusicKit authorization completes
 - `func playAlbum(_ album: Album, startTrackID: MusicItemID?) async throws`
 - `func pause()` / `func resume() async` — pause/resume current playback
 - Always queues the resolved Album object (full tracks in canonical order), never playlist tracks
